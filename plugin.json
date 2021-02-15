@@ -1,0 +1,15 @@
+{
+    "$schema": "https://raw.githubusercontent.com/AuburnSounds/dplug/master/plugin-schema.json",
+    "vendorName": "klkn",
+    "vendorUniqueID": "KLKN",
+    "vendorSupportEmail": "klknn.gh@gmail.com",
+    "pluginName": "synth2",
+    "pluginHomepage": "https://github.com/klknn/synth2",
+    "pluginUniqueID": "kls2",
+    "publicVersion": "1.0.0",
+    "CFBundleIdentifierPrefix": "com.klkn",
+    "hasGUI": false,
+    "isSynth": true,
+    "receivesMIDI": true,
+    "category": "instrumentSynthesizer"
+}
