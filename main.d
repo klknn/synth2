@@ -1,113 +1,91 @@
 /**
-Synth2 virtual analog syntesizer.
+   Synth2 virtual analog syntesizer.
 
-Copyright: klknn 2021.
-Copyright: Elias Batek 2018.
-License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
+   Copyright: klknn 2021.
+   Copyright: Elias Batek 2018.
+   License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
 import std.math;
-import dplug.core, dplug.client;
 
-import oscillator;
+import dplug.core : makeVec, mallocNew;
+import dplug.client : Client, DLLEntryPoint, EnumParameter, LegalIO, Parameter,
+  parsePluginInfo, pluginEntryPoints, PluginInfo, TimeInfo;
+
+import oscillator : Synth, WaveForm;
 
 // This define entry points for plugin formats, 
 // depending on which version identifiers are defined.
-mixin(pluginEntryPoints!PolyAlias);
+mixin(pluginEntryPoints!Synth2Client);
 
-private
-{
-    // Number of max notes playing at the same time
-    enum maxVoices = 4;
 
-    enum Params : int
-    {
-        osc1WaveForm,
-    }
+// Number of max notes playing at the same time
+enum maxVoices = 4;
 
-    immutable waveFormNames = [__traits(allMembers, WaveForm)];
+enum Params : int {
+  osc1WaveForm,
 }
 
+immutable waveFormNames = [__traits(allMembers, WaveForm)];
+
+
 /// Polyphonic digital-aliasing synth
-final class PolyAlias : dplug.client.Client
-{
-nothrow @nogc:
+class Synth2Client : Client {
+ public:
+  nothrow @nogc:
 
-    private
-    {
-        Synth!maxVoices _synth;
+  override PluginInfo buildPluginInfo() {
+    // Plugin info is parsed from plugin.json here at compile time.
+    // Indeed it is strongly recommended that you do not fill PluginInfo
+    // manually, else the information could diverge.
+    static immutable info = parsePluginInfo(import("plugin.json"));
+    return info;
+  }
+
+  override Parameter[] buildParameters() {
+    auto params = makeVec!Parameter();
+    params ~= mallocNew!EnumParameter(Params.osc1WaveForm, "Osc 1: Waveform",
+                                      waveFormNames, 0);
+    return params.releaseData();
+  }
+
+  override LegalIO[] buildLegalIO() {
+    auto io = makeVec!LegalIO();
+    io ~= LegalIO(0, 1);
+    io ~= LegalIO(0, 2);
+    return io.releaseData();
+  }
+  
+  override int maxFramesInProcess() pure {
+    return 32; // samples only processed by a maximum of 32 samples
+  }
+
+  override void reset(double sampleRate, int maxFrames,
+                      int numInputs, int numOutputs) {
+    this._synth.reset(sampleRate);
+  }
+
+  override void processAudio(const(float*)[] inputs, float*[] outputs,
+                             int frames, TimeInfo info) {
+    // Bind params.
+    this._synth.setWaveForm(readParam!WaveForm(Params.osc1WaveForm));
+    // Bind notes.
+    foreach (msg; this.getNextMidiMessages(frames)) {
+      if (msg.isNoteOn()) {
+        this._synth.markNoteOn(msg.noteNumber());
+      }
+      else if (msg.isNoteOff()) {
+        this._synth.markNoteOff(msg.noteNumber());
+      }
     }
-
-    public this()
-    {
-        super();
-
-        assumeNothrowNoGC((PolyAlias this_) {
-            this_._synth = mallocNew!(typeof(this._synth))(WaveForm.saw);
-        })(this);
+    // Generate samples.
+    foreach (frame; 0 .. frames) {
+      auto sample = this._synth.synthesizeNext();
+      foreach (chan; 0 .. outputs.length) {
+        outputs[chan][frame] = sample;
+      }
     }
-
-    public override
-    {
-        PluginInfo buildPluginInfo()
-        {
-            // Plugin info is parsed from plugin.json here at compile time.
-            // Indeed it is strongly recommended that you do not fill PluginInfo
-            // manually, else the information could diverge.
-            static immutable PluginInfo pluginInfo = parsePluginInfo(import("plugin.json"));
-            return pluginInfo;
-        }
-
-        override Parameter[] buildParameters()
-        {
-            auto params = makeVec!Parameter();
-            params ~= mallocNew!EnumParameter(Params.osc1WaveForm, "Osc 1: Waveform", waveFormNames, 0);
-            return params.releaseData();
-        }
-
-        override LegalIO[] buildLegalIO()
-        {
-            auto io = makeVec!LegalIO();
-            io ~= LegalIO(0, 1);
-            io ~= LegalIO(0, 2);
-            return io.releaseData();
-        }
-
-        override int maxFramesInProcess() pure const
-        {
-            return 32; // samples only processed by a maximum of 32 samples
-        }
-
-        override void reset(double sampleRate, int maxFrames, int numInputs, int numOutputs)
-        {
-            this._synth.reset(sampleRate);
-        }
-
-        override void processAudio(const(float*)[] inputs, float*[] outputs, int frames, TimeInfo info)
-        {
-            foreach (msg; getNextMidiMessages(frames))
-            {
-                if (msg.isNoteOn())
-                {
-                    this._synth.markNoteOn(msg.noteNumber());
-                }
-                else if (msg.isNoteOff())
-                {
-                    this._synth.markNoteOff(msg.noteNumber());
-                }
-            }
-
-            this._synth.setWaveForm(readParam!WaveForm(Params.osc1WaveForm));
-
-            foreach (ref sample; outputs[0][0 .. frames])
-            {
-                sample = this._synth.synthesizeNext();
-            }
-
-            // Copy output to every channel
-            foreach (chan; 1 .. outputs.length)
-            {
-                outputs[chan][0 .. frames] = outputs[0][0 .. frames];
-            }
-        }
-    }
+  }
+  
+ private:
+  auto _synth = Synth!maxVoices(WaveForm.saw);
 }

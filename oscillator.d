@@ -39,9 +39,7 @@ struct Oscillator {
         break;
     }
     this.phase += frequency * TAU / this.sampleRate;
-    while (this.phase >= TAU) {
-      this.phase -= TAU;
-    }
+    this.phase %= TAU;
     return sample;
   }
 }
@@ -51,7 +49,7 @@ struct VoiceStatus {
   int note = -1;
 }
 
-class Synth(size_t voicesCount)
+struct Synth(size_t voicesCount)
 {
   static assert(voicesCount > 0, "A synth must have at least 1 voice.");
 
@@ -59,9 +57,7 @@ class Synth(size_t voicesCount)
   @safe @nogc nothrow:
 
   this(WaveForm waveForm) @system {
-    foreach (i; 0 .. voicesCount) {
-      _oscs[i].waveForm = waveForm;
-    }
+    setWaveForm(waveForm);
   }
 
   bool isPlaying() pure {
