@@ -96,7 +96,7 @@ nothrow @nogc:
                 }
             }
 
-            this._synth.waveForm = readParam!WaveForm(Params.osc1WaveForm);
+            this._synth.setWaveForm(readParam!WaveForm(Params.osc1WaveForm));
 
             foreach (ref sample; outputs[0][0 .. frames])
             {
