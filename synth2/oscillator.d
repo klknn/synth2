@@ -5,19 +5,21 @@ Copyright: klknn 2021.
 Copyright: Elias Batek 2018.
 License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
-module oscillator;
+module synth2.oscillator;
 
 import std.math : sin, PI;
 
 import dplug.core.math : TAU, convertMIDINoteToFrequency;
 
 
+/// Waveform kind.
 enum WaveForm {
   saw,
   sine,
   square,
 }
 
+/// Waveform oscilator.
 struct Oscillator {
   float phase = 0;
   float sampleRate;
@@ -25,7 +27,7 @@ struct Oscillator {
 
   @safe nothrow @nogc:
 
-  float synthesizeNext(float frequency) {
+  float oscilate(float frequency) {
     float sample = void;
     final switch (this.waveForm) {
       case WaveForm.saw:
@@ -44,18 +46,20 @@ struct Oscillator {
   }
 }
 
+/// MIDI voice status.
 struct VoiceStatus {
   bool isPlaying = false;
   int note = -1;
 }
 
-struct Synth(size_t voicesCount)
+/// Synthesizer integrates components.
+struct Synth
 {
-  static assert(voicesCount > 0, "A synth must have at least 1 voice.");
-
  public:
   @safe @nogc nothrow:
 
+  enum voicesCount = 4;
+  
   this(WaveForm waveForm) @system {
     setWaveForm(waveForm);
   }
@@ -113,8 +117,10 @@ struct Synth(size_t voicesCount)
   float synthesizeNext() @system {
     float sample = 0;
     foreach (i; 0 .. voicesCount) {
+      if (!_voices[i].isPlaying) continue;
+
       auto f = convertMIDINoteToFrequency(_voices[i].note);
-      auto s = !_voices[i].isPlaying ? 0.0 : _oscs[i].synthesizeNext(f);
+      auto s = _oscs[i].oscilate(f);
       sample += s / voicesCount; // synth + lower volume
     }
     return sample;

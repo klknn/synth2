@@ -5,21 +5,17 @@
    Copyright: Elias Batek 2018.
    License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
-import std.math;
+module synth2.main;
 
 import dplug.core : makeVec, mallocNew;
 import dplug.client : Client, DLLEntryPoint, EnumParameter, LegalIO, Parameter,
   parsePluginInfo, pluginEntryPoints, PluginInfo, TimeInfo;
 
-import oscillator : Synth, WaveForm;
+import synth2.oscillator : Synth, WaveForm;
 
 // This define entry points for plugin formats, 
 // depending on which version identifiers are defined.
 mixin(pluginEntryPoints!Synth2Client);
-
-
-// Number of max notes playing at the same time
-enum maxVoices = 4;
 
 enum Params : int {
   osc1WaveForm,
@@ -80,12 +76,13 @@ class Synth2Client : Client {
     // Generate samples.
     foreach (frame; 0 .. frames) {
       auto sample = this._synth.synthesizeNext();
-      foreach (chan; 0 .. outputs.length) {
-        outputs[chan][frame] = sample;
-      }
+      // foreach (chan; 0 .. outputs.length) {
+      outputs[0][frame] = sample;
+      //}
     }
+    outputs[1][0 .. frames] = outputs[0][0 .. frames];
   }
   
  private:
-  auto _synth = Synth!maxVoices(WaveForm.saw);
+  auto _synth = Synth(WaveForm.saw);
 }
