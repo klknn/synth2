@@ -31,8 +31,6 @@ class Synth2Client : Client {
 
   override PluginInfo buildPluginInfo() {
     // Plugin info is parsed from plugin.json here at compile time.
-    // Indeed it is strongly recommended that you do not fill PluginInfo
-    // manually, else the information could diverge.
     static immutable info = parsePluginInfo(import("plugin.json"));
     return info;
   }
@@ -40,7 +38,7 @@ class Synth2Client : Client {
   override Parameter[] buildParameters() {
     auto params = makeVec!Parameter();
     params ~= mallocNew!EnumParameter(Params.osc1WaveForm, "Osc 1: Waveform",
-                                      waveFormNames, 0);
+                                      waveFormNames, WaveForm.sine);
     return params.releaseData();
   }
 
@@ -57,32 +55,26 @@ class Synth2Client : Client {
 
   override void reset(double sampleRate, int maxFrames,
                       int numInputs, int numOutputs) {
-    this._synth.reset(sampleRate);
+    this._synth.setSampleRate(sampleRate);
   }
 
   override void processAudio(const(float*)[] inputs, float*[] outputs,
                              int frames, TimeInfo info) {
     // Bind params.
-    this._synth.setWaveForm(readParam!WaveForm(Params.osc1WaveForm));
-    // Bind notes.
+    _synth.setWaveForm(readParam!WaveForm(Params.osc1WaveForm));
+    // Bind MIDI.
     foreach (msg; this.getNextMidiMessages(frames)) {
-      if (msg.isNoteOn()) {
-        this._synth.markNoteOn(msg.noteNumber());
-      }
-      else if (msg.isNoteOff()) {
-        this._synth.markNoteOff(msg.noteNumber());
-      }
+      _synth.setMidi(msg);
     }
     // Generate samples.
     foreach (frame; 0 .. frames) {
-      auto sample = this._synth.synthesizeNext();
-      // foreach (chan; 0 .. outputs.length) {
-      outputs[0][frame] = sample;
-      //}
+      outputs[0][frame] = _synth.synthesize();
     }
-    outputs[1][0 .. frames] = outputs[0][0 .. frames];
+    foreach (chan; 1 .. outputs.length) {
+      outputs[chan][0 .. frames] = outputs[0][0 .. frames];
+    }
   }
   
  private:
-  auto _synth = Synth(WaveForm.saw);
+  Synth _synth;
 }

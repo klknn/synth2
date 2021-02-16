@@ -1,42 +1,57 @@
 {
-    "$schema": "https://raw.githubusercontent.com/Pure-D/code-d/master/json-validation/dub.schema.json",
-
-    "name": "synth2",
-
-    "importPaths": [ "." ],
-    "sourcePaths": [ "." ],
-    "stringImportPaths": [ "." ],
-
-    "targetType": "dynamicLibrary",
-
-    "dflags-linux-dmd": ["-defaultlib=libphobos2.a"],
-    "dflags-osx-ldc": ["-static"],
-    "dflags-linux-ldc": ["-link-defaultlib-shared=false"],
-    "dflags-linux-x86_64-ldc": ["-fvisibility=hidden"],
-    "dflags-windows-ldc": ["-mscrtlib=libcmt"],
-
-    "dependencies":
-    {
-        "dplug:vst": "~>10.2.1",
-        "dplug:vst3": "~>10.2.1",
-        "dplug:lv2": "~>10.2.1",
-    },
-
-    "configurations": [
-        {
-            "name": "VST3",
-            "versions": ["VST3"],
-            "targetType": "dynamicLibrary"
-        },
-        {
-            "name": "VST",
-            "versions": ["VST"],
-            "targetType": "dynamicLibrary"
-        },
-        {
-            "name": "LV2",
-            "versions": ["LV2"],
-            "targetType": "dynamicLibrary"
-        }
-    ]
+	"configurations": [
+		{
+			"name": "VST3",
+			"targetType": "dynamicLibrary",
+			"versions": [
+				"VST3"
+			]
+		},
+		{
+			"name": "VST",
+			"targetType": "dynamicLibrary",
+			"versions": [
+				"VST"
+			]
+		},
+		{
+			"name": "LV2",
+			"targetType": "dynamicLibrary",
+			"versions": [
+				"LV2"
+			]
+		}
+	],
+	"dependencies": {
+		"dplug:lv2": "~>10.2.1",
+		"dplug:vst": "~>10.2.1",
+		"dplug:vst3": "~>10.2.1",
+		"mir-random": "~>2.2.15"
+	},
+	"dflags-linux-dmd": [
+		"-defaultlib=libphobos2.a"
+	],
+	"dflags-linux-ldc": [
+		"-link-defaultlib-shared=false"
+	],
+	"dflags-linux-x86_64-ldc": [
+		"-fvisibility=hidden"
+	],
+	"dflags-osx-ldc": [
+		"-static"
+	],
+	"dflags-windows-ldc": [
+		"-mscrtlib=libcmt"
+	],
+	"importPaths": [
+		"."
+	],
+	"name": "synth2",
+	"sourcePaths": [
+		"."
+	],
+	"stringImportPaths": [
+		"."
+	],
+	"targetType": "dynamicLibrary"
 }

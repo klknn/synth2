@@ -7,9 +7,10 @@ License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
 module synth2.oscillator;
 
-import std.math : sin, PI;
+import mir.math : sin, PI, fmin;
 
 import dplug.core.math : TAU, convertMIDINoteToFrequency;
+import dplug.client.midi : MidiMessage, MidiStatus;
 
 
 /// Waveform kind.
@@ -17,6 +18,7 @@ enum WaveForm {
   saw,
   sine,
   square,
+  triangle,
 }
 
 /// Waveform oscilator.
@@ -28,21 +30,18 @@ struct Oscillator {
   @safe nothrow @nogc:
 
   float oscilate(float frequency) {
-    float sample = void;
-    final switch (this.waveForm) {
-      case WaveForm.saw:
-        sample = 1.0 - (this.phase / PI);
-        break;
-      case WaveForm.sine:
-        sample = sin(this.phase);
-        break;
-      case WaveForm.square:
-        sample = (this.phase <= PI) ? 1.0 : -1.0;
-        break;
-    }
     this.phase += frequency * TAU / this.sampleRate;
     this.phase %= TAU;
-    return sample;
+    final switch (this.waveForm) {
+      case WaveForm.saw:
+        return 1.0 - (this.phase / PI);
+      case WaveForm.sine:
+        return sin(this.phase);
+      case WaveForm.square:
+        return (this.phase <= PI) ? 1.0 : -1.0;
+      case WaveForm.triangle:
+        return fmin(this.phase, PI - this.phase) / PI;
+    }
   }
 }
 
@@ -52,35 +51,63 @@ struct VoiceStatus {
   int note = -1;
 }
 
-/// Synthesizer integrates components.
+/// Synthesizer that generates WAV samples by given params and midi.
 struct Synth
 {
  public:
   @safe @nogc nothrow:
 
   enum voicesCount = 4;
-  
-  this(WaveForm waveForm) @system {
-    setWaveForm(waveForm);
-  }
 
-  bool isPlaying() pure {
-    foreach(v; this._voices) {
-      if (v.isPlaying) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  WaveForm waveForm() pure {
-    return this._oscs[0].waveForm;
-  }
-
+  // Setters
   void setWaveForm(WaveForm value) {
     foreach (ref o; _oscs) {
       o.waveForm = value;
     }
+  }
+
+  void setSampleRate(float sampleRate) {
+    foreach (i; 0 .. voicesCount) {
+      _voices[i].isPlaying = false;
+      _oscs[i].sampleRate = sampleRate;
+    }
+  }
+
+  void setMidi(const ref MidiMessage msg) @system {
+    switch (cast(MidiStatus) msg.statusType()) {
+      case MidiStatus.noteOn:
+        markNoteOn(msg.noteNumber());
+        return;
+      case MidiStatus.noteOff:
+        markNoteOff(msg.noteNumber());
+        return;
+      default:
+        // TODO
+        return;
+    }
+  }
+
+  /// Synthesizes waveform sample.
+  float synthesize() @system {
+    float sample = 0;
+    foreach (i; 0 .. voicesCount) {
+      if (!_voices[i].isPlaying) continue;
+
+      auto freq = convertMIDINoteToFrequency(_voices[i].note);
+      sample += _oscs[i].oscilate(freq);
+    }
+    return sample / voicesCount;
+  }
+
+ private:
+  // TODO: use optional
+  int getUnusedVoiceId() {
+    foreach (i; 0 .. voicesCount) {
+      if (!_voices[i].isPlaying) {
+        return cast(int) i;
+      }
+    }
+    return -1;
   }
 
   void markNoteOn(int note) {
@@ -106,37 +133,7 @@ struct Synth
       }
     }
   }
-
-  void reset(float sampleRate) {
-    foreach (i; 0 .. voicesCount) {
-      _voices[i].isPlaying = false;
-      _oscs[i].sampleRate = sampleRate;
-    }
-  }
-
-  float synthesizeNext() @system {
-    float sample = 0;
-    foreach (i; 0 .. voicesCount) {
-      if (!_voices[i].isPlaying) continue;
-
-      auto f = convertMIDINoteToFrequency(_voices[i].note);
-      auto s = _oscs[i].oscilate(f);
-      sample += s / voicesCount; // synth + lower volume
-    }
-    return sample;
-  }
-
- private:
-  // TODO: use optional
-  int getUnusedVoiceId() {
-    foreach (i; 0 .. voicesCount) {
-      if (!_voices[i].isPlaying) {
-        return cast(int) i;
-      }
-    }
-    return -1;
-  }
-
+    
   VoiceStatus[voicesCount] _voices;
   Oscillator[voicesCount] _oscs;
 }

@@ -11,7 +11,9 @@ Simple virtual-analog synth aims to be Synth1 written in D.
   - [ ] color config
 - [ ] Oscillators
   - [x] sin/saw/square waves
-  - [ ] triangle wave
+  - [x] triangle wave
+  - [ ] velocity
+  - [ ] pitch bend
   - [ ] detune
   - [ ] FM
   - [ ] 2nd osc (w/ different features)
@@ -24,7 +26,9 @@ Simple virtual-analog synth aims to be Synth1 written in D.
 - [ ] Tempo Delay
 - [ ] Chorus / Flanger
 - [ ] Voice
+- [ ] Control change
 - [ ] Presets
+- [ ] Program change
 
 
 ## History
