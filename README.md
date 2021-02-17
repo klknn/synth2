@@ -2,6 +2,10 @@
 
 Simple virtual-analog synth aims to be Synth1 written in D.
 
+## How to build this plugin?
+
+https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
+
 ## Features (TODO)
 
 - [ ] GUI
