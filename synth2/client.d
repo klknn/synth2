@@ -10,7 +10,7 @@ module synth2.client;
 
 import dplug.core : makeVec, mallocNew;
 import dplug.client : Client, DLLEntryPoint, EnumParameter, LinearFloatParameter,
-  BoolParameter, GainParameter, IGraphics, LegalIO, Parameter,
+  BoolParameter, GainParameter, IntegerParameter, IGraphics, LegalIO, Parameter,
   parsePluginInfo, pluginEntryPoints, PluginInfo, TimeInfo;
 import mir.math : exp2;
 
@@ -28,9 +28,9 @@ enum Params : int {
   osc2WaveForm,
   // osc2Ring,
   // osc2Sync,
-  // osc2Track,
-  // osc2Pitch,
-  // osc2Fine,
+  osc2Track,
+  osc2Pitch,
+  osc2Fine,
   oscMix,
   // oscKeyShift,
   // oscPulseWidth,
@@ -70,15 +70,21 @@ class Synth2Client : Client {
         Params.osc1WaveForm, "Osc 1: Waveform", waveFormNames, WaveForm.sine);
     params ~= mallocNew!EnumParameter(
         Params.osc2WaveForm, "Osc 2: Waveform", waveFormNames, WaveForm.triangle);
+    params ~= mallocNew!BoolParameter(Params.osc2Track, "Osc 2: Track", true);
+    params ~= mallocNew!IntegerParameter(
+        // TODO: check synth1 default (440hz?)
+        Params.osc2Pitch, "Osc 2: Pitch", "", -69, 68, 0);
     params ~= mallocNew!LinearFloatParameter(
-        Params.oscMix, "Osc mix", "", 0f, 1f, 0f);
+        Params.osc2Fine, "Osc 2: Fine", "", -1.0, 1.0, 0.0);
+    params ~= mallocNew!LinearFloatParameter(
+        Params.oscMix, "Osc 1&2: Mix", "", 0f, 1f, 0f);
 
     // Osc sub.
     params ~= mallocNew!EnumParameter(
         Params.oscSubWaveForm, "Osc sub: Waveform", waveFormNames, WaveForm.sine);
     params ~= mallocNew!GainParameter(
         // TODO: check synth1 max vol.
-        Params.oscSubVol, "Osc sub: Vol", 10, -float.infinity);
+        Params.oscSubVol, "Osc sub: Vol", 0.0f, -float.infinity);
     params ~= mallocNew!BoolParameter(Params.oscSubOct, "Osc sub: -1 Oct", false);
 
     return params.releaseData();
@@ -106,14 +112,20 @@ class Synth2Client : Client {
                              int frames, TimeInfo info) {
     // Bind params.
     _osc1.setWaveForm(readParam!WaveForm(Params.osc1WaveForm));
+
     _osc2.setWaveForm(readParam!WaveForm(Params.osc2WaveForm));
+    _osc2.setNoteTrack(readParam!bool(Params.osc2Track));
+    _osc2.setNoteDiff(readParam!int(Params.osc2Pitch) +
+                      readParam!float(Params.osc2Fine));
+
     _oscSub.setWaveForm(readParam!WaveForm(Params.oscSubWaveForm));
+    _oscSub.setNoteDiff(readParam!bool(Params.oscSubOct) ? -12 : 0);
+
     // Bind MIDI.
     foreach (msg; this.getNextMidiMessages(frames)) {
       _osc1.setMidi(msg);
       _osc2.setMidi(msg);
       _oscSub.setMidi(msg);
-      _oscSub.setNoteDiff(readParam!bool(Params.oscSubOct) ? -12 : 0);
     }
     // Generate samples.
     const oscMix = readParam!float(Params.oscMix);

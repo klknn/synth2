@@ -7,11 +7,12 @@ License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
 module synth2.oscillator;
 
-import mir.random;
-import mir.math : sin, PI, fmin;
+import std.math : isNaN;
 
 import dplug.core.math : TAU, convertMIDINoteToFrequency;
 import dplug.client.midi : MidiMessage, MidiStatus;
+import mir.random : rand;
+import mir.math : sin, PI, fmin;
 
 
 /// Waveform kind.
@@ -102,18 +103,25 @@ struct Oscillator
     }
   }
 
-  void setNoteDiff(float diff) {
-    _noteDiff = diff;
+  void setNoteTrack(bool b) {
+    _noteTrack = b;
+  }
+  
+  void setNoteDiff(float note) {
+    _noteDiff = note;
   }
 
+  float note(const ref VoiceStatus v) pure {
+    return (_noteTrack ? v.note : 69.0f) + _noteDiff;
+  }
+  
   /// Synthesizes waveform sample.
   float synthesize() @system {
     float sample = 0;
     foreach (i; 0 .. voicesCount) {
-      if (!_voices[i].isPlaying) continue;
-
-      auto freq = convertMIDINoteToFrequency(_voices[i].note + _noteDiff);
-      sample += _wgens[i].oscilate(freq);
+      auto v = _voices[i];
+      if (!v.isPlaying) continue;
+      sample += _wgens[i].oscilate(convertMIDINoteToFrequency(this.note(v)));
     }
     return sample / voicesCount;
   }
@@ -154,6 +162,7 @@ struct Oscillator
   }
 
   float _noteDiff = 0.0;
+  bool _noteTrack = true;
   VoiceStatus[voicesCount] _voices;
   WaveGenerator[voicesCount] _wgens;
 }

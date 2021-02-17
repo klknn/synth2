@@ -15,8 +15,8 @@ Simple virtual-analog synth aims to be Synth1 written in D.
   - [ ] velocity
   - [ ] pitch bend
   - [ ] detune
-  - [ ] FM
-  - [ ] 2nd osc (w/ different features)
+  - [ ] Modulation (FM, Ring, Sync)
+  - [x] 2nd/sub osc
 - [ ] Amplifier (ADSR)
 - [ ] Filter
 - [ ] LFO
