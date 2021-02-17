@@ -8,7 +8,7 @@
     "pluginUniqueID": "kls2",
     "publicVersion": "1.0.0",
     "CFBundleIdentifierPrefix": "com.klkn",
-    "hasGUI": false,
+    "hasGUI": true,
     "isSynth": true,
     "receivesMIDI": true,
     "category": "instrumentSynthesizer"

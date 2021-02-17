@@ -6,3 +6,6 @@
 !*.md
 !.gitignore
 !LICENSE
+!resource/
+!resource/*.png
+!resource/*.ttf

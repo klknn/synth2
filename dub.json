@@ -1,57 +1,59 @@
 {
-	"configurations": [
-		{
-			"name": "VST3",
-			"targetType": "dynamicLibrary",
-			"versions": [
-				"VST3"
-			]
-		},
-		{
-			"name": "VST",
-			"targetType": "dynamicLibrary",
-			"versions": [
-				"VST"
-			]
-		},
-		{
-			"name": "LV2",
-			"targetType": "dynamicLibrary",
-			"versions": [
-				"LV2"
-			]
-		}
-	],
-	"dependencies": {
-		"dplug:lv2": "~>10.2.1",
-		"dplug:vst": "~>10.2.1",
-		"dplug:vst3": "~>10.2.1",
-		"mir-random": "~>2.2.15"
+    "configurations": [
+	{
+	    "name": "VST3",
+	    "targetType": "dynamicLibrary",
+	    "versions": [
+		"VST3"
+	    ]
 	},
-	"dflags-linux-dmd": [
-		"-defaultlib=libphobos2.a"
-	],
-	"dflags-linux-ldc": [
-		"-link-defaultlib-shared=false"
-	],
-	"dflags-linux-x86_64-ldc": [
-		"-fvisibility=hidden"
-	],
-	"dflags-osx-ldc": [
-		"-static"
-	],
-	"dflags-windows-ldc": [
-		"-mscrtlib=libcmt"
-	],
-	"importPaths": [
-		"."
-	],
-	"name": "synth2",
-	"sourcePaths": [
-		"."
-	],
-	"stringImportPaths": [
-		"."
-	],
-	"targetType": "dynamicLibrary"
+	{
+	    "name": "VST",
+	    "targetType": "dynamicLibrary",
+	    "versions": [
+		"VST"
+	    ]
+	},
+	{
+	    "name": "LV2",
+	    "targetType": "dynamicLibrary",
+	    "versions": [
+		"LV2"
+	    ]
+	}
+    ],
+    "dependencies": {
+	"dplug:pbr-widgets": "~>10.2.1",
+	"dplug:lv2": "~>10.2.1",
+	"dplug:vst": "~>10.2.1",
+	"dplug:vst3": "~>10.2.1",
+	"mir-random": "~>2.2.15"
+    },
+    "dflags-linux-dmd": [
+	"-defaultlib=libphobos2.a"
+    ],
+    "dflags-linux-ldc": [
+	"-link-defaultlib-shared=false"
+    ],
+    "dflags-linux-x86_64-ldc": [
+	"-fvisibility=hidden"
+    ],
+    "dflags-osx-ldc": [
+	"-static"
+    ],
+    "dflags-windows-ldc": [
+	"-mscrtlib=libcmt"
+    ],
+    "importPaths": [
+	"."
+    ],
+    "name": "synth2",
+    "sourcePaths": [
+	"."
+    ],
+    "stringImportPaths": [
+	".",
+	"resource",
+    ],
+    "targetType": "dynamicLibrary"
 }
