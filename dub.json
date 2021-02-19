@@ -55,5 +55,5 @@
 	".",
 	"resource",
     ],
-    "targetType": "dynamicLibrary"
+    "targetType": "dynamicLibrary",
 }

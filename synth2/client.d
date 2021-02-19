@@ -7,25 +7,27 @@
 */
 module synth2.client;
 
+import std.traits : EnumMembers;
 
-import dplug.core : makeVec, mallocNew;
+import dplug.core : destroyFree, makeVec, mallocNew;
 import dplug.client : Client, DLLEntryPoint, EnumParameter, LinearFloatParameter,
   BoolParameter, GainParameter, IntegerParameter, IGraphics, LegalIO, Parameter,
   parsePluginInfo, pluginEntryPoints, PluginInfo, TimeInfo;
 import mir.math : exp2;
 
 import synth2.gui : Synth2GUI;
-import synth2.oscillator : Oscillator, WaveForm;
+import synth2.oscillator : Oscillator, Waveform;
 
 // This define entry points for plugin formats,
 // depending on which version identifiers are defined.
 mixin(pluginEntryPoints!Synth2Client);
 
 enum Params : int {
-  osc1WaveForm,
+  /// Oscillator section
+  osc1Waveform,
   // osc1Det,
   // osc1FM,
-  osc2WaveForm,
+  osc2Waveform,
   // osc2Ring,
   // osc2Sync,
   osc2Track,
@@ -33,15 +35,18 @@ enum Params : int {
   osc2Fine,
   oscMix,
   // oscKeyShift,
-  // oscPulseWidth,
+  oscPulseWidth,
   // oscPhase,
   // oscTune,
-  oscSubWaveForm,
+  oscSubWaveform,
   oscSubVol,
   oscSubOct,
+
+  /// Amp section
+  ampVel,
 }
 
-immutable waveFormNames = [__traits(allMembers, WaveForm)];
+immutable waveFormNames = [__traits(allMembers, Waveform)];
 
 /// Polyphonic digital-aliasing synth
 class Synth2Client : Client {
@@ -51,7 +56,7 @@ class Synth2Client : Client {
   // NOTE: this method will not call until GUI required (lazy)
   override IGraphics createGraphics() {
     _gui = mallocNew!Synth2GUI(
-        this.param(Params.osc1WaveForm),
+        this.param(Params.osc1Waveform),
     );
     return _gui;
   }
@@ -63,30 +68,39 @@ class Synth2Client : Client {
   }
 
   override Parameter[] buildParameters() {
-    auto params = makeVec!Parameter();
+    auto params = makeVec!Parameter(EnumMembers!Params.length);
+
+    void build(T, Args...)(Args args) {
+      params[args[0]] = mallocNew!T(args);
+    }
 
     // Osc 1 and 2.
-    params ~= mallocNew!EnumParameter(
-        Params.osc1WaveForm, "Osc 1: Waveform", waveFormNames, WaveForm.sine);
-    params ~= mallocNew!EnumParameter(
-        Params.osc2WaveForm, "Osc 2: Waveform", waveFormNames, WaveForm.triangle);
-    params ~= mallocNew!BoolParameter(Params.osc2Track, "Osc 2: Track", true);
-    params ~= mallocNew!IntegerParameter(
-        // TODO: check synth1 default (440hz?)
-        Params.osc2Pitch, "Osc 2: Pitch", "", -69, 68, 0);
-    params ~= mallocNew!LinearFloatParameter(
+    build!EnumParameter(
+        Params.osc1Waveform, "Osc1/Wave", waveFormNames, Waveform.sine);
+    build!EnumParameter(
+        Params.osc2Waveform, "Osc2/Wave", waveFormNames, Waveform.triangle);
+    build!BoolParameter(Params.osc2Track, "Osc 2: Track", true);
+    // TODO: check synth1 default (440hz?)
+    build!IntegerParameter(Params.osc2Pitch, "Osc 2: Pitch", "", -69, 68, 0);
+    build!LinearFloatParameter(
         Params.osc2Fine, "Osc 2: Fine", "", -1.0, 1.0, 0.0);
-    params ~= mallocNew!LinearFloatParameter(
+    build!LinearFloatParameter(
         Params.oscMix, "Osc 1&2: Mix", "", 0f, 1f, 0f);
+    build!LinearFloatParameter(
+        Params.oscPulseWidth, "Osc 1&2: P/W", "", 0f, 1f, 0.5f);
 
     // Osc sub.
-    params ~= mallocNew!EnumParameter(
-        Params.oscSubWaveForm, "Osc sub: Waveform", waveFormNames, WaveForm.sine);
-    params ~= mallocNew!GainParameter(
+    build!EnumParameter(
+        Params.oscSubWaveform, "Osc sub: Waveform", waveFormNames, Waveform.sine);
+    build!GainParameter(
         // TODO: check synth1 max vol.
         Params.oscSubVol, "Osc sub: Vol", 0.0f, -float.infinity);
-    params ~= mallocNew!BoolParameter(Params.oscSubOct, "Osc sub: -1 Oct", false);
+    build!BoolParameter(Params.oscSubOct, "Osc sub: -1 Oct", false);
 
+    // Amp.
+    build!LinearFloatParameter(
+        Params.ampVel, "Amp: Vel", "", 0, 1.0, 0);
+    
     return params.releaseData();
   }
 
@@ -110,17 +124,26 @@ class Synth2Client : Client {
 
   override void processAudio(const(float*)[] inputs, float*[] outputs,
                              int frames, TimeInfo info) {
-    // Bind params.
-    _osc1.setWaveForm(readParam!WaveForm(Params.osc1WaveForm));
+    // TODO: use info.timeInSamples to set the RNG status.
 
-    _osc2.setWaveForm(readParam!WaveForm(Params.osc2WaveForm));
+    // Bind Osc params.
+    _osc1.setWaveform(readParam!Waveform(Params.osc1Waveform));
+    const pw = readParam!float(Params.oscPulseWidth);
+    _osc1.setPulseWidth(pw);
+    const vel = readParam!float(Params.ampVel);
+    _osc1.setVelocitySense(vel);
+
+    _osc2.setWaveform(readParam!Waveform(Params.osc2Waveform));
+    _osc2.setPulseWidth(pw);
     _osc2.setNoteTrack(readParam!bool(Params.osc2Track));
     _osc2.setNoteDiff(readParam!int(Params.osc2Pitch) +
                       readParam!float(Params.osc2Fine));
+    _osc2.setVelocitySense(vel);
 
-    _oscSub.setWaveForm(readParam!WaveForm(Params.oscSubWaveForm));
+    _oscSub.setWaveform(readParam!Waveform(Params.oscSubWaveform));
     _oscSub.setNoteDiff(readParam!bool(Params.oscSubOct) ? -12 : 0);
-
+    _oscSub.setVelocitySense(vel);
+    
     // Bind MIDI.
     foreach (msg; this.getNextMidiMessages(frames)) {
       _osc1.setMidi(msg);
@@ -143,4 +166,21 @@ class Synth2Client : Client {
  private:
   Oscillator _osc1, _osc2, _oscSub;
   Synth2GUI _gui;
+}
+
+///
+@nogc nothrow @system unittest {
+  Synth2Client c = mallocNew!Synth2Client();
+  c.reset(44100, 32, 0, 2);
+
+  float*[2] inputs, outputs;
+  inputs[0] = null;
+  inputs[1] = null;
+  float[8][2] outputFrames;
+  outputs[0] = &outputFrames[0][0];
+  outputs[1] = &outputFrames[1][0];
+
+  TimeInfo info;
+  c.processAudio(inputs[], outputs[], 8, info);
+  c.destroyFree();
 }

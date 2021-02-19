@@ -4,16 +4,18 @@
 */
 module synth2.gui;
 
+private {
 import dplug.core : mallocNew, destroyFree;
 import dplug.graphics.color : RGBA;
 import dplug.graphics.font : Font;
 import dplug.client : Parameter;
+import dplug.pbrwidgets : PBRBackgroundGUI, UILabel, UIOnOffSwitch;
 import gfm.math : box2i;
+}
 
 // import synth2.label : UILabel;
 
 // for pbrwidgets
-import dplug.pbrwidgets : PBRBackgroundGUI, UILabel, UIOnOffSwitch;
 
 
 enum png = "white600.png"; // "black.png"
