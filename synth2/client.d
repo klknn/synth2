@@ -13,7 +13,7 @@ import dplug.core : destroyFree, makeVec, mallocNew;
 import dplug.client : Client, DLLEntryPoint, EnumParameter, LinearFloatParameter,
   BoolParameter, GainParameter, IntegerParameter, IGraphics, LegalIO, Parameter,
   parsePluginInfo, pluginEntryPoints, PluginInfo, TimeInfo;
-import mir.math : exp2;
+import mir.math : exp2, log;
 
 import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator, Waveform;
@@ -25,7 +25,7 @@ mixin(pluginEntryPoints!Synth2Client);
 enum Params : int {
   /// Oscillator section
   osc1Waveform,
-  // osc1Det,
+  osc1Det,
   // osc1FM,
   osc2Waveform,
   // osc2Ring,
@@ -77,6 +77,7 @@ class Synth2Client : Client {
     // Osc 1 and 2.
     build!EnumParameter(
         Params.osc1Waveform, "Osc1/Wave", waveFormNames, Waveform.sine);
+    build!LinearFloatParameter(Params.osc1Det, "Osc1/Det", "", 0, 1, 0);
     build!EnumParameter(
         Params.osc2Waveform, "Osc2/Wave", waveFormNames, Waveform.triangle);
     build!BoolParameter(Params.osc2Track, "Osc 2: Track", true);
@@ -117,7 +118,9 @@ class Synth2Client : Client {
 
   override void reset(double sampleRate, int maxFrames,
                       int numInputs, int numOutputs) {
-    this._osc1.setSampleRate(sampleRate);
+    foreach (ref o; this._osc1s) {
+      o.setSampleRate(sampleRate);
+    }
     this._osc2.setSampleRate(sampleRate);
     this._oscSub.setSampleRate(sampleRate);
   }
@@ -127,11 +130,13 @@ class Synth2Client : Client {
     // TODO: use info.timeInSamples to set the RNG status.
 
     // Bind Osc params.
-    _osc1.setWaveform(readParam!Waveform(Params.osc1Waveform));
     const pw = readParam!float(Params.oscPulseWidth);
-    _osc1.setPulseWidth(pw);
     const vel = readParam!float(Params.ampVel);
-    _osc1.setVelocitySense(vel);
+    foreach (ref _osc1; _osc1s) {
+      _osc1.setWaveform(readParam!Waveform(Params.osc1Waveform));
+      _osc1.setPulseWidth(pw);
+      _osc1.setVelocitySense(vel);
+    }
 
     _osc2.setWaveform(readParam!Waveform(Params.osc2Waveform));
     _osc2.setPulseWidth(pw);
@@ -146,17 +151,33 @@ class Synth2Client : Client {
     
     // Bind MIDI.
     foreach (msg; this.getNextMidiMessages(frames)) {
-      _osc1.setMidi(msg);
+      foreach (ref o1; _osc1s) {
+        o1.setMidi(msg);
+      }
       _osc2.setMidi(msg);
       _oscSub.setMidi(msg);
     }
     // Generate samples.
+    const osc1Det = readParam!float(Params.osc1Det);
+    foreach (i; 1 .. _osc1s.length) {
+      _osc1s[i].setNoteDetune(log(osc1Det + 1f) * 2 *
+                              log(i + 1f) / log(cast(float) _osc1s.length));
+    }
     const oscMix = readParam!float(Params.oscMix);
     const oscSubVol = readParam!float(Params.oscSubVol);
+
     foreach (frame; 0 .. frames) {
-      outputs[0][frame] = (1.0 - oscMix) *_osc1.synthesize()
-                          + oscMix * _osc2.synthesize()
-                          + exp2(oscSubVol) * _oscSub.synthesize();
+      float o1 = _osc1s[0].synthesize();
+      if (osc1Det != 0) {
+        foreach (ref o; _osc1s[1 .. $]) {
+          o1 += o.synthesize();
+        }
+      }
+      float output = (1.0 - oscMix) * o1;
+      output += oscMix * _osc2.synthesize();
+      output += exp2(oscSubVol) * _oscSub.synthesize();
+
+      outputs[0][frame] = output;
     }
     foreach (chan; 1 .. outputs.length) {
       outputs[chan][0 .. frames] = outputs[0][0 .. frames];
@@ -164,7 +185,8 @@ class Synth2Client : Client {
   }
 
  private:
-  Oscillator _osc1, _osc2, _oscSub;
+  Oscillator _osc2, _oscSub;
+  Oscillator[8] _osc1s;  // +7 for detune
   Synth2GUI _gui;
 }
 

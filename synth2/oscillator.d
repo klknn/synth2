@@ -150,6 +150,10 @@ struct Oscillator
       case MidiStatus.noteOff:
         markNoteOff(msg.noteNumber());
         break;
+      case MidiStatus.pitchBend:
+        _pitchBend = msg.pitchBend();
+        assert(false);
+        // break;
       default:
         // TODO
         break;
@@ -163,9 +167,15 @@ struct Oscillator
   void setNoteDiff(float note) {
     _noteDiff = note;
   }
+  
+  void setNoteDetune(float val) {
+    _noteDiff = val;
+  }
 
   float note(VoiceStatus v) const {
-    return (_noteTrack ? v.note : 69.0f) + _noteDiff;
+    return (_noteTrack ? v.note : 69.0f) + _noteDiff + _noteDetune
+        // TODO: fix pitch bend
+        + _pitchBend * _pitchBendWidth;
   }
   
   /// Synthesizes waveform sample.
@@ -233,9 +243,20 @@ struct Oscillator
 
   // voice global config
   float _noteDiff = 0.0;
+  float _noteDetune = 0.0;
   bool _noteTrack = true;
   float _velocitySense = 0.0;
+  float _pitchBend = 0.0;
+  float _pitchBendWidth = 2.0;
 
   VoiceStatus[voicesCount] _voices;
   WaveformRange[voicesCount] _waves;
+}
+
+@system
+unittest {
+  import dplug.client.midi;
+
+  auto m = makeMidiMessagePitchWheel(0, 0, 0.5);
+  assert(m.pitchWheel == 0.5);
 }

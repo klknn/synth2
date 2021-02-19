@@ -14,14 +14,14 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
   - [ ] labels (background png?)
   - [ ] color config
 - [ ] Oscillators
-  - [x] sin/saw/square waves
-  - [x] triangle wave
-  - [ ] velocity
-  - [ ] pitch bend
-  - [ ] detune
-  - [ ] Modulation (FM, Ring, Sync)
+  - [x] sin/saw/square/triangle/noise waves
   - [x] 2nd/sub osc
-- [ ] Amplifier (ADSR)
+  - [x] detune
+  - [ ] pitch bend
+  - [ ] Modulation (FM, Ring, Sync)
+- [ ] Amplifier
+  - [x] velocity sensitivity
+  - [ ] ADSR
 - [ ] Filter
 - [ ] LFO
 - [ ] Arpeggiator
