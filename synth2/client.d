@@ -29,7 +29,7 @@ enum Params : int {
   // osc1FM,
   osc2Waveform,
   // osc2Ring,
-  // osc2Sync,
+  osc2Sync,
   osc2Track,
   osc2Pitch,
   osc2Fine,
@@ -85,6 +85,7 @@ class Synth2Client : Client {
     build!IntegerParameter(Params.osc2Pitch, "Osc 2: Pitch", "", -69, 68, 0);
     build!LinearFloatParameter(
         Params.osc2Fine, "Osc 2: Fine", "", -1.0, 1.0, 0.0);
+    build!BoolParameter(Params.osc2Sync, "Osc2/Sync", false);
     build!LinearFloatParameter(
         Params.oscMix, "Osc 1&2: Mix", "", 0f, 1f, 0f);
     build!LinearFloatParameter(
@@ -165,7 +166,7 @@ class Synth2Client : Client {
     }
     const oscMix = readParam!float(Params.oscMix);
     const oscSubVol = readParam!float(Params.oscSubVol);
-
+    const sync = readParam!bool(Params.osc2Sync);
     foreach (frame; 0 .. frames) {
       float o1 = _osc1s[0].synthesize();
       if (osc1Det != 0) {
@@ -174,6 +175,9 @@ class Synth2Client : Client {
         }
       }
       float output = (1.0 - oscMix) * o1;
+      if (sync) {
+        _osc2.synchronize(_osc1s[0]);
+      }
       output += oscMix * _osc2.synthesize();
       output += exp2(oscSubVol) * _oscSub.synthesize();
 

@@ -31,7 +31,8 @@ enum Waveform {
 /// Waveform range.
 struct WaveformRange {
   float freq = 440;
-  float phase = 0;
+  float phase = 0;  // [0 .. 2 * PI (=TAU)]
+  float normalized = false;
   float sampleRate = 44100;
   float pulseWidth = 0.5;
   Waveform waveform = Waveform.sine;
@@ -58,7 +59,11 @@ struct WaveformRange {
   
   pure void popFront() {
     this.phase += this.freq * TAU / this.sampleRate;
-    this.phase %= TAU;
+    this.normalized = false;
+    if (this.phase >= TAU) {
+      this.phase %= TAU;
+      this.normalized = true;
+    }
   }
 }
 
@@ -176,6 +181,14 @@ struct Oscillator
     return (_noteTrack ? v.note : 69.0f) + _noteDiff + _noteDetune
         // TODO: fix pitch bend
         + _pitchBend * _pitchBendWidth;
+  }
+
+  void synchronize(const ref Oscillator src) {
+    foreach (i, ref w; _waves) {
+      if (src._waves[i].normalized) {
+        w.phase = 0f;
+      }
+    }
   }
   
   /// Synthesizes waveform sample.

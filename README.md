@@ -17,8 +17,10 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
   - [x] sin/saw/square/triangle/noise waves
   - [x] 2nd/sub osc
   - [x] detune
+  - [x] sync
   - [ ] pitch bend
-  - [ ] Modulation (FM, Ring, Sync)
+  - [ ] FM
+  - [ ] AM (ring)
 - [ ] Amplifier
   - [x] velocity sensitivity
   - [ ] ADSR
