@@ -49,9 +49,9 @@ struct WaveformRange {
       case Waveform.sine:
         return sin(this.phase);
       case Waveform.pulse:
-        return this.phase <= this.pulseWidth * TAU ? 1.0 : -1.0;
+        return this.phase <= this.pulseWidth * TAU ? 1f : -1f;
       case Waveform.triangle:
-        return fmin(this.phase, PI - this.phase) / PI;
+        return 2f * fmin(this.phase, TAU - this.phase) / PI - 1f;
       case Waveform.noise:
         return rand!float(this.rng);
     }    
