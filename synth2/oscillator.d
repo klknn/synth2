@@ -190,6 +190,12 @@ struct Oscillator
       }
     }
   }
+
+  void setFM(float scale, const ref Oscillator mod) {
+    foreach (i; 0 .. voicesCount) {
+      _waves[i].phase += scale * mod.frontNth(i);
+    }
+  }
   
   /// Synthesizes waveform sample.
   float synthesize() @system {
@@ -199,25 +205,28 @@ struct Oscillator
 
   enum empty = false;
   
-  float front() @system {
+  float front() const {
     float sample = 0;
     foreach (i; 0 .. voicesCount) {
-      auto v = _voices[i];
-      if (!v.isPlaying) continue;
-
-      _waves[i].freq = convertMIDINoteToFrequency(this.note(_voices[i]));
-      sample +=_waves[i].front * v.gain;
+      sample += frontNth(i);
     }
     return sample / voicesCount;
   }
 
-  void popFront() {
-    foreach (ref w; _waves) {
+  void popFront() @system {
+    foreach (i, ref w; _waves) {
+      w.freq = convertMIDINoteToFrequency(this.note(_voices[i]));
       w.popFront();
     }
   }
 
  private:
+  float frontNth(size_t i) const {
+    auto v = _voices[i];
+    if (!v.isPlaying) return 0f;
+    return _waves[i].front * v.gain;
+  }
+
   // TODO: use optional
   int getUnusedVoiceId() {
     foreach (i; 0 .. voicesCount) {

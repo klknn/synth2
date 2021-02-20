@@ -26,7 +26,7 @@ enum Params : int {
   /// Oscillator section
   osc1Waveform,
   osc1Det,
-  // osc1FM,
+  osc1FM,
   osc2Waveform,
   osc2Ring,
   osc2Sync,
@@ -78,6 +78,8 @@ class Synth2Client : Client {
     build!EnumParameter(
         Params.osc1Waveform, "Osc1/Wave", waveFormNames, Waveform.sine);
     build!LinearFloatParameter(Params.osc1Det, "Osc1/Det", "", 0, 1, 0);
+    build!LinearFloatParameter(Params.osc1FM, "Osc1/FM", "", 0, 10, 0);
+    
     build!EnumParameter(
         Params.osc2Waveform, "Osc2/Wave", waveFormNames, Waveform.triangle);
     build!BoolParameter(Params.osc2Track, "Osc 2: Track", true);
@@ -169,7 +171,14 @@ class Synth2Client : Client {
     const oscSubVol = readParam!float(Params.oscSubVol);
     const sync = readParam!bool(Params.osc2Sync);
     const ring = readParam!bool(Params.osc2Ring);
+    const fm = readParam!float(Params.osc1FM);
+    const doFM = !sync && !ring && fm > 0;
     foreach (frame; 0 .. frames) {
+      if (doFM) {
+        foreach (ref o; _osc1s) {
+          o.setFM(fm, _osc2);
+        }
+      }
       float o1 = _osc1s[0].synthesize();
       if (osc1Det != 0) {
         foreach (ref o; _osc1s[1 .. $]) {
