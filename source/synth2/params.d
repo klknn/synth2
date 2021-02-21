@@ -11,7 +11,8 @@ import std.traits : EnumMembers;
 import dplug.core.nogc : destroyFree, mallocNew;
 import dplug.core.vec : makeVec, Vec;
 import dplug.client.params : BoolParameter, EnumParameter, FloatParameter,
-  GainParameter, IntegerParameter, LinearFloatParameter, Parameter;
+  GainParameter, IntegerParameter, LinearFloatParameter, LogFloatParameter,
+  Parameter, PowFloatParameter;
 
 import synth2.oscillator : Waveform, waveformNames;
 
@@ -38,6 +39,11 @@ enum Params : int {
   oscSubOct,
 
   /// Amp section
+  ampAttack,
+  ampDecay,
+  ampSustain,
+  ampRelease,
+  ampGain,
   ampVel,
 }
 
@@ -115,16 +121,44 @@ struct ParamBuilder {
     return mallocNew!BoolParameter(Params.oscSubOct, "OscSub/-1Oct", false);
   }
 
+  // Epsilon value to avoid NaN in log.
+  enum logBias = 1e-3;
+  
+  static ampAttack() {
+    return mallocNew!LogFloatParameter(
+        Params.ampAttack, "Amp/Att", "sec", logBias, 100.0, logBias);
+  }
+
+  static ampDecay() {
+    return mallocNew!LogFloatParameter(
+        Params.ampDecay, "Amp/Dec", "sec", logBias, 100.0, logBias);
+  }
+
+  static ampSustain() {
+    return mallocNew!GainParameter(
+        Params.ampSustain, "Amp/Sus", 0.0, 0.0);
+  }
+
+  static ampRelease() {
+    return mallocNew!LogFloatParameter(
+        Params.ampRelease, "Amp/Rel", "%", logBias, 100, logBias);
+  }
+
+  static ampGain() {
+    return mallocNew!GainParameter(Params.ampGain, "Amp/Gain", 10.0, 0.0);
+  }
+    
   static ampVel() {
     return mallocNew!LinearFloatParameter(
         Params.ampVel, "Amp/Vel", "", 0, 1.0, 0);
   }
-  
+    
   @nogc nothrow:
   static Parameter[] buildParameters() {
     auto params = makeVec!Parameter(EnumMembers!Params.length);
     static foreach (i, pname; paramNames) {
       params[i] = __traits(getMember, ParamBuilder, pname)();
+      assert(i == params[i].index, pname ~ " has wrong index.");
     }
     return params.releaseData();
   }

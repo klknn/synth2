@@ -7,7 +7,6 @@ License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
 module synth2.oscillator;
 
-private {
 import std.math : isNaN;
 
 import dplug.core.math : TAU, convertDecibelToLinearGain, convertMIDINoteToFrequency;
@@ -15,7 +14,9 @@ import dplug.client.midi : MidiMessage, MidiStatus;
 import mir.random : rand;
 import mir.random.engine.xoshiro : Xoshiro128StarStar_32;
 import mir.math : sin, PI, fmin, log2, exp2;
-}
+
+import synth2.envelope : ADSR;
+
 @safe nothrow @nogc:
 
 
@@ -143,6 +144,8 @@ struct Oscillator
       _voices[i].isPlaying = false;
       _waves[i].sampleRate = sampleRate;
       _waves[i].phase = 0;
+      _envelopes[i].frameWidth = 1f / sampleRate;
+      _envelopes[i].attack;
     }
   }
 
@@ -199,6 +202,15 @@ struct Oscillator
       _waves[i].phase += scale * mod.frontNth(i);
     }
   }
+
+  void setADSR(float a, float d, float s, float r) {
+    foreach (ref ADSR e; _envelopes) {
+      e.attackTime = a;
+      e.decayTime = d;
+      e.sustainLevel = s;
+      e.releaseTime = r;
+    }
+  }
   
   /// Synthesizes waveform sample.
   float synthesize() @system {
@@ -221,6 +233,7 @@ struct Oscillator
   void popFront() {
     foreach (i, ref w; _waves) {
       w.popFront();
+      _envelopes[i].popFront();
     }
   }
 
@@ -249,7 +262,7 @@ struct Oscillator
   float frontNth(size_t i) const {
     auto v = _voices[i];
     if (!v.isPlaying) return 0f;
-    return _waves[i].front * v.gain;
+    return _waves[i].front * v.gain * _envelopes[i].front;
   }
 
   // TODO: use optional
@@ -279,12 +292,14 @@ struct Oscillator
     _voices[i].gain = convertDecibelToLinearGain(db);
     _voices[i].isPlaying = true;
     _lastUsedId = i;
+    _envelopes[i].attack();
   }
 
   void markNoteOff(int note) {
-    foreach (ref v; this._voices) {
+    foreach (i, ref v; this._voices) {
       if (v.isPlaying && (v.note == note)) {
         v.isPlaying = false;
+        _envelopes[i].release();
       }
     }
   }
@@ -300,6 +315,7 @@ struct Oscillator
 
   VoiceStatus[voicesCount] _voices;
   WaveformRange[voicesCount] _waves;
+  ADSR[voicesCount] _envelopes;
 }
 
 @system

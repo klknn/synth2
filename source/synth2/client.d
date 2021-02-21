@@ -17,7 +17,7 @@ import dplug.client.graphics : IGraphics;
 import dplug.client.dllmain : DLLEntryPoint, pluginEntryPoints;
 import dplug.client.params : Parameter;
 import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn;
-import mir.math.common : exp2, log;
+import mir.math.common : exp2, log, sqrt;
 
 import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator, Waveform, waveformNames;
@@ -96,6 +96,17 @@ class Synth2Client : Client {
     _oscSub.setNoteDiff(readParam!bool(Params.oscSubOct) ? -12 : 0);
     _oscSub.setVelocitySense(vel);
 
+    // Bind ADSR.
+    const attack = readParam!float(Params.ampAttack) - ParamBuilder.logBias;
+    const decay = readParam!float(Params.ampDecay) - ParamBuilder.logBias;
+    const sustain = exp2(readParam!float(Params.ampSustain));
+    const release = readParam!float(Params.ampRelease) - ParamBuilder.logBias;
+    foreach (ref osc1; _osc1s) {
+      osc1.setADSR(attack, decay, sustain, release);
+    }
+    _osc2.setADSR(attack, decay, sustain, release);
+    _oscSub.setADSR(attack, decay, sustain, release);
+
     const osc1Det = readParam!float(Params.osc1Det);
 
     // Bind MIDI.
@@ -115,7 +126,7 @@ class Synth2Client : Client {
                               log(i + 1f) / log(cast(float) _osc1s.length));
     }
     const oscMix = readParam!float(Params.oscMix);
-    const oscSubVol = readParam!float(Params.oscSubVol);
+    const oscSubVol = exp2(readParam!float(Params.oscSubVol));
     const sync = readParam!bool(Params.osc2Sync);
     const ring = readParam!bool(Params.osc2Ring);
     const fm = readParam!float(Params.osc1FM);
@@ -144,7 +155,7 @@ class Synth2Client : Client {
         _osc2.synchronize(_osc1s[0]);
       }
       output += oscMix * _osc2.synthesize() * (ring ? o1 : 1f);
-      output += exp2(oscSubVol) * _oscSub.synthesize();
+      output += oscSubVol * _oscSub.synthesize();
 
       outputs[0][frame] = output;
     }
