@@ -96,7 +96,7 @@ class Synth2Client : Client {
     _oscSub.setNoteDiff(readParam!bool(Params.oscSubOct) ? -12 : 0);
     _oscSub.setVelocitySense(vel);
 
-    // Bind ADSR.
+    // Setup ADSR envelope.
     const attack = readParam!float(Params.ampAttack) - ParamBuilder.logBias;
     const decay = readParam!float(Params.ampDecay) - ParamBuilder.logBias;
     const sustain = exp2(readParam!float(Params.ampSustain));
@@ -107,9 +107,8 @@ class Synth2Client : Client {
     _osc2.setADSR(attack, decay, sustain, release);
     _oscSub.setADSR(attack, decay, sustain, release);
 
+    // Setup freq by MIDI and params.
     const osc1Det = readParam!float(Params.osc1Det);
-
-    // Bind MIDI.
     foreach (msg; this.getNextMidiMessages(frames)) {
       _osc1s[0].setMidi(msg);
       if (osc1Det != 0) {
@@ -120,24 +119,26 @@ class Synth2Client : Client {
       _osc2.setMidi(msg);
       _oscSub.setMidi(msg);
     }
-    // Generate samples.
     foreach (i; 1 .. _osc1s.length) {
       _osc1s[i].setNoteDetune(log(osc1Det + 1f) * 2 *
                               log(i + 1f) / log(cast(float) _osc1s.length));
     }
-    const oscMix = readParam!float(Params.oscMix);
-    const oscSubVol = exp2(readParam!float(Params.oscSubVol));
-    const sync = readParam!bool(Params.osc2Sync);
-    const ring = readParam!bool(Params.osc2Ring);
-    const fm = readParam!float(Params.osc1FM);
-    const doFM = !sync && !ring && fm > 0;
-
     foreach (ref o; _osc1s) {
       o.updateFreq();
     }
     _osc2.updateFreq();
     _oscSub.updateFreq();
 
+    // Read remaining params for sample generation.
+    const oscMix = readParam!float(Params.oscMix);
+    const oscSubVol = exp2(readParam!float(Params.oscSubVol));
+    const sync = readParam!bool(Params.osc2Sync);
+    const ring = readParam!bool(Params.osc2Ring);
+    const fm = readParam!float(Params.osc1FM);
+    const doFM = !sync && !ring && fm > 0;
+    const ampGain = exp2(readParam!float(Params.ampGain));
+
+    // Generate samples.    
     foreach (frame; 0 .. frames) {
       if (doFM) {
         foreach (ref o; _osc1s) {
@@ -157,7 +158,7 @@ class Synth2Client : Client {
       output += oscMix * _osc2.synthesize() * (ring ? o1 : 1f);
       output += oscSubVol * _oscSub.synthesize();
 
-      outputs[0][frame] = output;
+      outputs[0][frame] = ampGain * output;
     }
     foreach (chan; 1 .. outputs.length) {
       outputs[chan][0 .. frames] = outputs[0][0 .. frames];

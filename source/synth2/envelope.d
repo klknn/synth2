@@ -30,24 +30,25 @@ struct ADSR {
     this._stageTime = 0;
   }
 
-  enum empty = false;
+  bool empty() const { return this._stage == Stage.done; }
 
   /// Returns an amplitude of the linear envelope.
   float front() const {
     final switch (this._stage) {
       case Stage.attack:
-        return this.attackTime == 0 ? 1 : this._stageTime / this.attackTime;
+        return this.attackTime == 0 ? 1 : (this._stageTime / this.attackTime);
       case Stage.decay:
         return this.decayTime == 0
             ? 1
-            : this._stageTime * (this.sustainLevel -  1f) /  this.decayTime + 1f;
+            : (this._stageTime * (this.sustainLevel -  1f) /  this.decayTime + 1f);
       case Stage.sustain:
         return this.sustainLevel;
       case Stage.release:
         import std.math : isNaN;
-        assert(isNaN(this._releaseLevel), "invalid release level.");
-        return -this._stageTime * this._releaseLevel / this.releaseTime
-            + this._releaseLevel;
+        assert(!isNaN(this._releaseLevel), "invalid release level.");
+        return this.releaseTime == 0 ? 0f
+            : (-this._stageTime * this._releaseLevel / this.releaseTime
+               + this._releaseLevel);
       case Stage.done:
         return 0f;
     }
@@ -112,10 +113,15 @@ unittest {
     }
     assert(env._stage == Stage.sustain);
     env.release();
+    // foreach does not mutate `env`.
+    foreach (amp; env) {
+      assert(env._stage == Stage.release);
+    }
     foreach (i; 0 .. env.releaseTime) {
       assert(env._stage == Stage.release);
       env.popFront();
     }
     assert(env._stage == Stage.done);
+    assert(env.empty);
   }
 }

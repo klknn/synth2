@@ -234,6 +234,9 @@ struct Oscillator
     foreach (i, ref w; _waves) {
       w.popFront();
       _envelopes[i].popFront();
+      if (_envelopes[i].empty) {
+        _voices[i].isPlaying = false;
+      }
     }
   }
 
@@ -298,7 +301,6 @@ struct Oscillator
   void markNoteOff(int note) {
     foreach (i, ref v; this._voices) {
       if (v.isPlaying && (v.note == note)) {
-        v.isPlaying = false;
         _envelopes[i].release();
       }
     }

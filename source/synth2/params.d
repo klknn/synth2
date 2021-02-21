@@ -145,7 +145,7 @@ struct ParamBuilder {
   }
 
   static ampGain() {
-    return mallocNew!GainParameter(Params.ampGain, "Amp/Gain", 10.0, 0.0);
+    return mallocNew!GainParameter(Params.ampGain, "Amp/Gain", 3.0, 0.0);
   }
     
   static ampVel() {
