@@ -1,6 +1,7 @@
 # Synth2
 
 [![ci](https://github.com/klknn/synth2/actions/workflows/ci.yml/badge.svg)](https://github.com/klknn/synth2/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/klknn/synth2/branch/master/graph/badge.svg?token=4HMC5S2GER)](https://codecov.io/gh/klknn/synth2)
 
 Simple virtual-analog synth aims to be Synth1 written in D.
 
