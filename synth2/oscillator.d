@@ -28,6 +28,8 @@ enum Waveform {
   noise,
 }
 
+static immutable waveformNames = [__traits(allMembers, Waveform)];
+
 /// Waveform range.
 struct WaveformRange {
   float freq = 440;
@@ -140,6 +142,7 @@ struct Oscillator
     foreach (i; 0 .. voicesCount) {
       _voices[i].isPlaying = false;
       _waves[i].sampleRate = sampleRate;
+      _waves[i].phase = 0;
     }
   }
 
@@ -229,6 +232,18 @@ struct Oscillator
       }
     }
   }
+
+  auto waves() const {
+    return _waves;
+  }
+
+  auto voices() const {
+    return _voices;
+  }
+
+  auto lastUsedWave() const {
+    return _waves[_lastUsedId];
+  }
   
  private:
   float frontNth(size_t i) const {
@@ -263,6 +278,7 @@ struct Oscillator
     const db =  velocityToDB(midi.noteVelocity(), this._velocitySense);
     _voices[i].gain = convertDecibelToLinearGain(db);
     _voices[i].isPlaying = true;
+    _lastUsedId = i;
   }
 
   void markNoteOff(int note) {
@@ -280,6 +296,7 @@ struct Oscillator
   float _velocitySense = 0.0;
   float _pitchBend = 0.0;
   float _pitchBendWidth = 2.0;
+  size_t _lastUsedId = 0;
 
   VoiceStatus[voicesCount] _voices;
   WaveformRange[voicesCount] _waves;

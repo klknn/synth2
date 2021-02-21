@@ -7,46 +7,26 @@
 */
 module synth2.client;
 
+import std.algorithm.comparison : clamp;
 import std.traits : EnumMembers;
 
-import dplug.core : destroyFree, makeVec, mallocNew;
-import dplug.client : Client, DLLEntryPoint, EnumParameter, LinearFloatParameter,
-  BoolParameter, GainParameter, IntegerParameter, IGraphics, LegalIO, Parameter,
-  parsePluginInfo, pluginEntryPoints, PluginInfo, TimeInfo;
-import mir.math : exp2, log;
+import dplug.core.nogc : destroyFree, mallocNew;
+import dplug.core.vec : makeVec, Vec;
+import dplug.client.client : Client, LegalIO, parsePluginInfo, PluginInfo, TimeInfo;
+import dplug.client.graphics : IGraphics;
+import dplug.client.dllmain : DLLEntryPoint, pluginEntryPoints;
+import dplug.client.params : Parameter;
+import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn;
+import mir.math.common : exp2, log;
 
 import synth2.gui : Synth2GUI;
-import synth2.oscillator : Oscillator, Waveform;
+import synth2.oscillator : Oscillator, Waveform, waveformNames;
+import synth2.params : Params, ParamBuilder, paramNames;
 
 // This define entry points for plugin formats,
 // depending on which version identifiers are defined.
 mixin(pluginEntryPoints!Synth2Client);
 
-enum Params : int {
-  /// Oscillator section
-  osc1Waveform,
-  osc1Det,
-  osc1FM,
-  osc2Waveform,
-  osc2Ring,
-  osc2Sync,
-  osc2Track,
-  osc2Pitch,
-  osc2Fine,
-  oscMix,
-  // oscKeyShift,
-  oscPulseWidth,
-  // oscPhase,
-  // oscTune,
-  oscSubWaveform,
-  oscSubVol,
-  oscSubOct,
-
-  /// Amp section
-  ampVel,
-}
-
-immutable waveFormNames = [__traits(allMembers, Waveform)];
 
 /// Polyphonic digital-aliasing synth
 class Synth2Client : Client {
@@ -68,45 +48,7 @@ class Synth2Client : Client {
   }
 
   override Parameter[] buildParameters() {
-    auto params = makeVec!Parameter(EnumMembers!Params.length);
-
-    void build(T, Args...)(Args args) {
-      params[args[0]] = mallocNew!T(args);
-    }
-
-    // Osc 1 and 2.
-    build!EnumParameter(
-        Params.osc1Waveform, "Osc1/Wave", waveFormNames, Waveform.sine);
-    build!LinearFloatParameter(Params.osc1Det, "Osc1/Det", "", 0, 1, 0);
-    build!LinearFloatParameter(Params.osc1FM, "Osc1/FM", "", 0, 10, 0);
-    
-    build!EnumParameter(
-        Params.osc2Waveform, "Osc2/Wave", waveFormNames, Waveform.triangle);
-    build!BoolParameter(Params.osc2Track, "Osc 2: Track", true);
-    // TODO: check synth1 default (440hz?)
-    build!IntegerParameter(Params.osc2Pitch, "Osc 2: Pitch", "", -69, 68, 0);
-    build!LinearFloatParameter(
-        Params.osc2Fine, "Osc 2: Fine", "", -1.0, 1.0, 0.0);
-    build!BoolParameter(Params.osc2Ring, "Osc2/Ring", false);
-    build!BoolParameter(Params.osc2Sync, "Osc2/Sync", false);
-    build!LinearFloatParameter(
-        Params.oscMix, "Osc 1&2: Mix", "", 0f, 1f, 0f);
-    build!LinearFloatParameter(
-        Params.oscPulseWidth, "Osc 1&2: P/W", "", 0f, 1f, 0.5f);
-
-    // Osc sub.
-    build!EnumParameter(
-        Params.oscSubWaveform, "Osc sub: Waveform", waveFormNames, Waveform.sine);
-    build!GainParameter(
-        // TODO: check synth1 max vol.
-        Params.oscSubVol, "Osc sub: Vol", 0.0f, -float.infinity);
-    build!BoolParameter(Params.oscSubOct, "Osc sub: -1 Oct", false);
-
-    // Amp.
-    build!LinearFloatParameter(
-        Params.ampVel, "Amp: Vel", "", 0, 1.0, 0);
-    
-    return params.releaseData();
+    return this._builder.buildParameters();
   }
 
   override LegalIO[] buildLegalIO() {
@@ -152,17 +94,21 @@ class Synth2Client : Client {
     _oscSub.setWaveform(readParam!Waveform(Params.oscSubWaveform));
     _oscSub.setNoteDiff(readParam!bool(Params.oscSubOct) ? -12 : 0);
     _oscSub.setVelocitySense(vel);
-    
+
+    const osc1Det = readParam!float(Params.osc1Det);
+
     // Bind MIDI.
     foreach (msg; this.getNextMidiMessages(frames)) {
-      foreach (ref o1; _osc1s) {
-        o1.setMidi(msg);
+      _osc1s[0].setMidi(msg);
+      if (osc1Det != 0) {
+        foreach (ref o1; _osc1s[1 .. $]) {
+          o1.setMidi(msg);
+        }
       }
       _osc2.setMidi(msg);
       _oscSub.setMidi(msg);
     }
     // Generate samples.
-    const osc1Det = readParam!float(Params.osc1Det);
     foreach (i; 1 .. _osc1s.length) {
       _osc1s[i].setNoteDetune(log(osc1Det + 1f) * 2 *
                               log(i + 1f) / log(cast(float) _osc1s.length));
@@ -207,24 +153,247 @@ class Synth2Client : Client {
   }
 
  private:
+  ParamBuilder _builder;
   Oscillator _osc2, _oscSub;
   Oscillator[8] _osc1s;  // +7 for detune
   Synth2GUI _gui;
 }
 
-///
-@nogc nothrow @system unittest {
-  Synth2Client c = mallocNew!Synth2Client();
-  c.reset(44100, 32, 0, 2);
 
-  float*[2] inputs, outputs;
-  inputs[0] = null;
-  inputs[1] = null;
-  float[8][2] outputFrames;
-  outputs[0] = &outputFrames[0][0];
-  outputs[1] = &outputFrames[1][0];
+/// Host for running one client for testing.
+struct TestHost {
+  Synth2Client client;
+  int frames = 8;
+  Vec!float[2] outputFrames; 
+  MidiMessage msg1 = makeMidiMessageNoteOn(0, 0, 100, 100);
+  MidiMessage msg2 = makeMidiMessageNoteOn(1, 0, 90, 90);
 
-  TimeInfo info;
-  c.processAudio(inputs[], outputs[], 8, info);
-  c.destroyFree();
+  @nogc nothrow:
+  
+  /// Sets param to test.
+  void setParam(Params pid, T)(T val) {
+    auto p = __traits(getMember, client._builder, paramNames[pid]);
+    static if (is(T == Waveform)) {
+      double v;
+      assert(p.normalizedValueFromString(waveformNames[val], v));
+    }
+    else static if (is(T == bool)) {
+      auto v = val ? 1.0 : 0.0;
+    }
+    else static if (is(T == int)) {
+      auto v = clamp((cast(double)val - p.minValue) /
+                     (p.maxValue - p.minValue), 0.0, 1.0);
+    }
+    else static if (is(T : double)) {
+      auto v = p.toNormalized(val);
+    }
+    else {
+      static assert(false, "unknown param");
+    }
+    client.param(pid).setFromHost(v);
+  }
+  
+  void processAudio() {
+    outputFrames[0].resize(this.frames);
+    outputFrames[1].resize(this.frames);
+    client.reset(44100, 32, 0, 2);
+
+    float*[2] inputs, outputs;
+    inputs[0] = null;
+    inputs[1] = null;
+    outputs[0] = &outputFrames[0][0];
+    outputs[1] = &outputFrames[1][0];
+
+    client.enqueueMIDIFromHost(msg1);
+    client.enqueueMIDIFromHost(msg2);
+    
+    TimeInfo info;
+    client.processAudio(inputs[], outputs[], frames, info);    
+  }
+
+  /// Returns true iff the val changes outputs of processAudio.
+  bool paramChangeOutputs(Params pid, T)(T val) {
+    double origin = this.client.param(pid).getForHost;
+    
+    // 1st trial w/o param
+    this.processAudio();
+    auto prev = makeVec!float(this.frames);
+    foreach (i; 0 .. frames) {
+      prev[i] = outputFrames[0][i];
+    }
+    this.setParam!(pid, T)(val);
+
+    // 2nd trial w/ param
+    this.processAudio();
+
+    // revert param
+    this.client.param(pid).setFromHost(origin);
+    
+    foreach (i; 0 .. frames) {
+      if (prev[i] != outputFrames[0][i])
+        return true;
+    }
+    return false;
+  }
+}
+
+/// Test default params with benchmark.
+@nogc nothrow @system
+unittest {
+  import core.stdc.stdio : printf;
+  import std.datetime.stopwatch : benchmark;
+  
+  TestHost host = { client: mallocNew!Synth2Client(), frames: 100 };
+  scope (exit) destroyFree(host.client);
+
+  host.processAudio();  // to omit the first record.
+  auto time = benchmark!(() => host.processAudio())(100)[0].split!("msecs", "usecs");
+  printf("benchmark (default): %ld ms %ld us\n", time.msecs, time.usecs);
+  assert(time.msecs <= 20);
+}
+
+/// Test deterministic outputs.
+@nogc nothrow @system
+unittest {
+  enum N = 100;
+  float[N] prev;
+  TestHost host = { client: mallocNew!Synth2Client(), frames: N };
+  scope (exit) destroyFree(host.client);
+
+  // 1st
+  host.processAudio();
+  prev[] = host.outputFrames[0][];
+  bool notNaN = true;
+  foreach (x; prev) {
+    notNaN &= x != float.init;
+  }
+  assert(notNaN);
+
+  // 2nd
+  host.processAudio();
+  assert(prev[] == host.outputFrames[0][]);
+}
+
+/// Test changing waveforms.
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  foreach (wf; EnumMembers!Waveform) {
+    host.setParam!(Params.osc1Waveform)(wf);
+    host.setParam!(Params.osc2Waveform)(wf);
+    host.setParam!(Params.oscSubWaveform)(wf);
+    host.processAudio();
+    assert(host.client._osc1s[0].waves[0].waveform == wf);
+    assert(host.client._osc2.waves[0].waveform == wf);    
+    assert(host.client._oscSub.waves[0].waveform == wf);    
+  }
+}
+
+/// Test FM (TODO: check values).
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  assert(host.paramChangeOutputs!(Params.osc1FM)(10.0));
+}
+
+/// Test detune.
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  assert(host.paramChangeOutputs!(Params.osc1Det)(1.0));
+  
+  host.processAudio();
+  // Check the detune osc1s are NOT playing.
+  foreach (o; host.client._osc1s[1 .. $]) {
+    assert(!o.voices[0].isPlaying);
+  }
+  
+  host.setParam!(Params.osc1Det)(1.0);
+  host.processAudio();
+  // Check all the osc1s are playing.
+  foreach (o; host.client._osc1s) {
+    assert(o.voices[0].isPlaying);
+  }
+}
+
+/// Test Osc2 Track and pitch
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  // Check initial pitch.
+  host.setParam!(Params.osc2Track)(false);
+  host.processAudio();
+  assert(host.client._osc2.lastUsedWave.freq == 440);
+
+  // Check pitch is 1 octave down.
+  host.setParam!(Params.osc2Pitch)(-12);
+  host.processAudio();
+  assert(host.client._osc2.lastUsedWave.freq == 220);
+
+  // Check pitch is down from 220hz.
+  host.setParam!(Params.osc2Fine)(-1.0);
+  host.processAudio();
+  assert(host.client._osc2.lastUsedWave.freq < 220);
+}
+
+/// Test sync.
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  host.frames = 100;
+  host.setParam!(Params.oscMix)(1.0);
+  host.setParam!(Params.osc2Pitch)(-2);
+  assert(host.paramChangeOutputs!(Params.osc2Sync)(true));
+}
+
+/// Test ring.
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  host.setParam!(Params.oscMix)(1.0);
+  assert(host.paramChangeOutputs!(Params.osc2Ring)(true));
+}
+
+/// Test pulse width.
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  // PW does NOT work for Waveform != pulse.
+  host.setParam!(Params.osc1Waveform)(Waveform.sine);
+  assert(!host.paramChangeOutputs!(Params.oscPulseWidth)(0.1));
+
+  // PW only works for Waveform.pulse.
+  host.setParam!(Params.osc1Waveform)(Waveform.pulse);
+  assert(host.paramChangeOutputs!(Params.oscPulseWidth)(0.1));
+}
+
+/// Test oscSubVol.
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  assert(host.paramChangeOutputs!(Params.oscSubVol)(1.0));
+}
+
+/// Test ampVel.
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+  assert(host.paramChangeOutputs!(Params.ampVel)(1.0));
 }
