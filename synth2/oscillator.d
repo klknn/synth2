@@ -204,7 +204,8 @@ struct Oscillator
   }
 
   enum empty = false;
-  
+
+  /// Returns sum of amplitudes of _waves at the current phase.
   float front() const {
     float sample = 0;
     foreach (i; 0 .. voicesCount) {
@@ -213,13 +214,22 @@ struct Oscillator
     return sample / voicesCount;
   }
 
-  void popFront() @system {
+  /// Increments phase in _waves.
+  void popFront() {
     foreach (i, ref w; _waves) {
-      w.freq = convertMIDINoteToFrequency(this.note(_voices[i]));
       w.popFront();
     }
   }
 
+  /// Updates frequency by MIDI and params.
+  void updateFreq() @system {
+    foreach (i, ref w; _waves) {
+      if (_voices[i].isPlaying) {
+        w.freq = convertMIDINoteToFrequency(this.note(_voices[i]));
+      }
+    }
+  }
+  
  private:
   float frontNth(size_t i) const {
     auto v = _voices[i];

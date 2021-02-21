@@ -173,6 +173,13 @@ class Synth2Client : Client {
     const ring = readParam!bool(Params.osc2Ring);
     const fm = readParam!float(Params.osc1FM);
     const doFM = !sync && !ring && fm > 0;
+
+    foreach (ref o; _osc1s) {
+      o.updateFreq();
+    }
+    _osc2.updateFreq();
+    _oscSub.updateFreq();
+
     foreach (frame; 0 .. frames) {
       if (doFM) {
         foreach (ref o; _osc1s) {
