@@ -262,7 +262,7 @@ unittest {
   host.processAudio();  // to omit the first record.
   auto time = benchmark!(() => host.processAudio())(100)[0].split!("msecs", "usecs");
   printf("benchmark (default): %ld ms %ld us\n", time.msecs, time.usecs);
-  assert(time.msecs <= 20);
+  version (LDC) assert(time.msecs <= 20);
 }
 
 /// Test deterministic outputs.

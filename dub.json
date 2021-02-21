@@ -1,38 +1,46 @@
 {
     "configurations": [
 	{
+	    "name": "LV2",
+	    "targetType": "dynamicLibrary",
+	    "versions": [
+		"LV2"
+	    ],
+	    "dependencies": {
+		"dplug:lv2": "~>10.2.1",
+	    },
+	},
+	{
 	    "name": "VST3",
 	    "targetType": "dynamicLibrary",
 	    "versions": [
 		"VST3"
-	    ]
+	    ],
+	    "dependencies": {
+		"dplug:vst3": "~>10.2.1",
+	    },
 	},
 	{
 	    "name": "VST",
 	    "targetType": "dynamicLibrary",
 	    "versions": [
 		"VST"
-	    ]
-	},
-	{
-	    "name": "LV2",
-	    "targetType": "dynamicLibrary",
-	    "versions": [
-		"LV2"
-	    ]
+	    ],
+	    "dependencies": {
+		"dplug:vst": "~>10.2.1",
+	    },
 	},
 	{
             "name": "AU",
             "versions": ["AU"],
             "targetType": "dynamicLibrary",
+	    "dependencies": {
+		"dplug:au": "~>10.2.1",
+	    },
         },
     ],
     "dependencies": {
-	"dplug:au": "~>10.2.1",
 	"dplug:pbr-widgets": "~>10.2.1",
-	"dplug:lv2": "~>10.2.1",
-	"dplug:vst": "~>10.2.1",
-	"dplug:vst3": "~>10.2.1",
 	"mir-random": "~>2.2.15"
     },
     "dflags-linux-dmd": [
