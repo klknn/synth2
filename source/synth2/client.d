@@ -23,10 +23,11 @@ import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator, Waveform, waveformNames;
 import synth2.params : Params, ParamBuilder, paramNames;
 
+version (unittest) {} else {
 // This define entry points for plugin formats,
 // depending on which version identifiers are defined.
 mixin(pluginEntryPoints!Synth2Client);
-
+}
 
 /// Polyphonic digital-aliasing synth
 class Synth2Client : Client {

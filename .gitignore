@@ -6,6 +6,11 @@
 !*.md
 !.gitignore
 !LICENSE
+!source/
+!source/synth2/
 !resource/
 !resource/*.png
 !resource/*.ttf
+!.github/
+!.github/workflows/
+!.github/workflows/ci.yml

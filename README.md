@@ -1,5 +1,7 @@
 # Synth2
 
+[![ci](https://github.com/klknn/synth2/actions/workflows/ci.yml/badge.svg)](https://github.com/klknn/synth2/actions/workflows/ci.yml)
+
 Simple virtual-analog synth aims to be Synth1 written in D.
 
 ## How to build this plugin?

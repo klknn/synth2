@@ -20,9 +20,15 @@
 	    "versions": [
 		"LV2"
 	    ]
-	}
+	},
+	{
+            "name": "AU",
+            "versions": ["AU"],
+            "targetType": "dynamicLibrary",
+        },
     ],
     "dependencies": {
+	"dplug:au": "~>10.2.1",
 	"dplug:pbr-widgets": "~>10.2.1",
 	"dplug:lv2": "~>10.2.1",
 	"dplug:vst": "~>10.2.1",
@@ -44,13 +50,7 @@
     "dflags-windows-ldc": [
 	"-mscrtlib=libcmt"
     ],
-    "importPaths": [
-	"."
-    ],
     "name": "synth2",
-    "sourcePaths": [
-	"."
-    ],
     "stringImportPaths": [
 	".",
 	"resource",
