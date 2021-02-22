@@ -79,15 +79,11 @@ class Synth2Client : Client {
     const ampGain = exp2(readParam!float(Params.ampGain));
     if (ampGain == 0) return;  // no output
     
-    // Check osc usage.
-    const osc1Det = readParam!float(Params.osc1Det);
     const oscMix = readParam!float(Params.oscMix);
     const sync = readParam!bool(Params.osc2Sync);
     const ring = readParam!bool(Params.osc2Ring);
     const fm = readParam!float(Params.osc1FM);
     const doFM = !sync && !ring && fm > 0;
-    const useOsc2 = oscMix != 0 || sync || ring || fm > 0;
-    const oscSubVol = exp2(readParam!float(Params.oscSubVol));
 
     const pw = readParam!float(Params.oscPulseWidth);
     const vel = readParam!float(Params.ampVel);
@@ -97,26 +93,32 @@ class Synth2Client : Client {
     const sustain = exp2(readParam!float(Params.ampSustain));
     const release = readParam!float(Params.ampRelease) - ParamBuilder.logBias;
 
-    foreach (i, ref _osc1; _osc1s) {
-      _osc1.setWaveform(readParam!Waveform(Params.osc1Waveform));
-      _osc1.setPulseWidth(pw);
-      _osc1.setADSR(attack, decay, sustain, release);
-      _osc1.setVelocitySense(vel);
-      if (osc1Det == 0) break; // skip detuned osc1s
-      _osc1.setNoteDetune(log(osc1Det + 1f) * 2 *
-                          log(i + 1f) / log(cast(float) _osc1s.length));
+    const useOsc1 = oscMix != 1 || sync || ring || fm > 0;
+    const osc1Det = readParam!float(Params.osc1Det);
+    if (useOsc1) {
+      foreach (i, ref _osc1; _osc1s) {
+        _osc1.setWaveform(readParam!Waveform(Params.osc1Waveform));
+        _osc1.setPulseWidth(pw);
+        _osc1.setVelocitySense(vel);
+        _osc1.setADSR(attack, decay, sustain, release);
+        if (osc1Det == 0) break; // skip detuned osc1s
+        _osc1.setNoteDetune(log(osc1Det + 1f) * 2 *
+                            log(i + 1f) / log(cast(float) _osc1s.length));
+      }
     }
 
+    const useOsc2 = oscMix != 0 || sync || ring || fm > 0;
     if (useOsc2) {
       _osc2.setWaveform(readParam!Waveform(Params.osc2Waveform));
       _osc2.setPulseWidth(pw);
       _osc2.setNoteTrack(readParam!bool(Params.osc2Track));
       _osc2.setNoteDiff(readParam!int(Params.osc2Pitch) +
                         readParam!float(Params.osc2Fine));
-
+      _osc2.setVelocitySense(vel);
       _osc2.setADSR(attack, decay, sustain, release);
     }
 
+    const oscSubVol = exp2(readParam!float(Params.oscSubVol));
     if (oscSubVol != 0) {
       _oscSub.setWaveform(readParam!Waveform(Params.oscSubWaveform));
       _oscSub.setNoteDiff(readParam!bool(Params.oscSubOct) ? -12 : 0);
@@ -126,16 +128,20 @@ class Synth2Client : Client {
 
     // Setup freq by MIDI and params.
     foreach (msg; this.getNextMidiMessages(frames)) {
-      foreach (ref o1; _osc1s) {
-        o1.setMidi(msg);
-        if (osc1Det == 0) break;
+      if (useOsc1) {
+        foreach (ref o1; _osc1s) {
+          o1.setMidi(msg);
+          if (osc1Det == 0) break;
+        }
       }
       if (useOsc2) _osc2.setMidi(msg);
       if (oscSubVol != 0) _oscSub.setMidi(msg);
     }
-    foreach (ref o; _osc1s) {
-      o.updateFreq();
-      if (osc1Det == 0) break;
+    if (useOsc1) {
+      foreach (ref o; _osc1s) {
+        o.updateFreq();
+        if (osc1Det == 0) break;
+      }
     }
     if (useOsc2) _osc2.updateFreq();
     if (oscSubVol != 0) _oscSub.updateFreq();
@@ -144,13 +150,15 @@ class Synth2Client : Client {
     foreach (frame; 0 .. frames) {
       // osc1
       float o1 = 0;
-      foreach (ref o; _osc1s) {
-        if (doFM) {
-          o.setFM(fm, _osc2);
+      if (useOsc1) {
+        foreach (ref o; _osc1s) {
+          if (doFM) {
+            o.setFM(fm, _osc2);
+          }
+          o1 += o.front;
+          o.popFront();
+          if (osc1Det == 0) break;
         }
-        o1 += o.front;
-        o.popFront();
-        if (osc1Det == 0) break;
       }
       float output = (1.0 - oscMix) * o1;
 
