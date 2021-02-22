@@ -119,7 +119,7 @@ jobs:
           $BuiltLib = "./builds/Linux-64b-VST/klkn synth2.so"
         }
         $esc = '--%'
-        ${{ env.DPlugBuild }} -a ${{ matrix.arch }} $esc $Plugins
+        ${{ env.DPlugBuild }} -a ${{ matrix.arch }} $esc $Plugins --final
       # ${{ env.DplugProcess }} $BuiltLib -t 10
       working-directory: .
 

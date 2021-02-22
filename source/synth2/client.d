@@ -49,7 +49,7 @@ class Synth2Client : Client {
   }
 
   override Parameter[] buildParameters() {
-    return this._builder.buildParameters();
+    return ParamBuilder.buildParameters();
   }
 
   override LegalIO[] buildLegalIO() {
@@ -76,13 +76,27 @@ class Synth2Client : Client {
                              int frames, TimeInfo info) {
     // TODO: use info.timeInSamples to set the RNG status.
 
+    const ampGain = exp2(readParam!float(Params.ampGain));
+    if (ampGain == 0) return;  // no output
+    
     // Bind Osc params.
+    const osc1Det = readParam!float(Params.osc1Det);
     const pw = readParam!float(Params.oscPulseWidth);
     const vel = readParam!float(Params.ampVel);
-    foreach (ref _osc1; _osc1s) {
+
+    const attack = readParam!float(Params.ampAttack) - ParamBuilder.logBias;
+    const decay = readParam!float(Params.ampDecay) - ParamBuilder.logBias;
+    const sustain = exp2(readParam!float(Params.ampSustain));
+    const release = readParam!float(Params.ampRelease) - ParamBuilder.logBias;
+
+    foreach (i, ref _osc1; _osc1s) {
       _osc1.setWaveform(readParam!Waveform(Params.osc1Waveform));
       _osc1.setPulseWidth(pw);
       _osc1.setVelocitySense(vel);
+      _osc1.setADSR(attack, decay, sustain, release);
+      if (osc1Det == 0) break; // skip detuned osc1s
+      _osc1.setNoteDetune(log(osc1Det + 1f) * 2 *
+                          log(i + 1f) / log(cast(float) _osc1s.length));
     }
 
     _osc2.setWaveform(readParam!Waveform(Params.osc2Waveform));
@@ -91,73 +105,64 @@ class Synth2Client : Client {
     _osc2.setNoteDiff(readParam!int(Params.osc2Pitch) +
                       readParam!float(Params.osc2Fine));
     _osc2.setVelocitySense(vel);
-
-    _oscSub.setWaveform(readParam!Waveform(Params.oscSubWaveform));
-    _oscSub.setNoteDiff(readParam!bool(Params.oscSubOct) ? -12 : 0);
-    _oscSub.setVelocitySense(vel);
-
-    // Setup ADSR envelope.
-    const attack = readParam!float(Params.ampAttack) - ParamBuilder.logBias;
-    const decay = readParam!float(Params.ampDecay) - ParamBuilder.logBias;
-    const sustain = exp2(readParam!float(Params.ampSustain));
-    const release = readParam!float(Params.ampRelease) - ParamBuilder.logBias;
-    foreach (ref osc1; _osc1s) {
-      osc1.setADSR(attack, decay, sustain, release);
-    }
     _osc2.setADSR(attack, decay, sustain, release);
-    _oscSub.setADSR(attack, decay, sustain, release);
 
+    const oscSubVol = exp2(readParam!float(Params.oscSubVol));
+    if (oscSubVol != 0) {
+      _oscSub.setWaveform(readParam!Waveform(Params.oscSubWaveform));
+      _oscSub.setNoteDiff(readParam!bool(Params.oscSubOct) ? -12 : 0);
+      _oscSub.setVelocitySense(vel);
+      _oscSub.setADSR(attack, decay, sustain, release);
+    }
     // Setup freq by MIDI and params.
-    const osc1Det = readParam!float(Params.osc1Det);
     foreach (msg; this.getNextMidiMessages(frames)) {
-      _osc1s[0].setMidi(msg);
-      if (osc1Det != 0) {
-        foreach (ref o1; _osc1s[1 .. $]) {
-          o1.setMidi(msg);
-        }
+      foreach (ref o1; _osc1s) {
+        o1.setMidi(msg);
+        if (osc1Det == 0) break;
       }
       _osc2.setMidi(msg);
-      _oscSub.setMidi(msg);
-    }
-    foreach (i; 1 .. _osc1s.length) {
-      _osc1s[i].setNoteDetune(log(osc1Det + 1f) * 2 *
-                              log(i + 1f) / log(cast(float) _osc1s.length));
+      if (oscSubVol != 0) _oscSub.setMidi(msg);
     }
     foreach (ref o; _osc1s) {
       o.updateFreq();
+      if (osc1Det == 0) break;
     }
     _osc2.updateFreq();
-    _oscSub.updateFreq();
+    if (oscSubVol != 0) _oscSub.updateFreq();
 
     // Read remaining params for sample generation.
     const oscMix = readParam!float(Params.oscMix);
-    const oscSubVol = exp2(readParam!float(Params.oscSubVol));
     const sync = readParam!bool(Params.osc2Sync);
     const ring = readParam!bool(Params.osc2Ring);
     const fm = readParam!float(Params.osc1FM);
     const doFM = !sync && !ring && fm > 0;
-    const ampGain = exp2(readParam!float(Params.ampGain));
 
     // Generate samples.    
     foreach (frame; 0 .. frames) {
-      if (doFM) {
-        foreach (ref o; _osc1s) {
+      // osc1
+      float o1 = 0;
+      foreach (ref o; _osc1s) {
+        if (doFM) {
           o.setFM(fm, _osc2);
         }
-      }
-      float o1 = _osc1s[0].synthesize();
-      if (osc1Det != 0) {
-        foreach (ref o; _osc1s[1 .. $]) {
-          o1 += o.synthesize();
-        }
+        o1 += o.front;
+        o.popFront();
+        if (osc1Det == 0) break;
       }
       float output = (1.0 - oscMix) * o1;
+
+      // osc2
       if (sync) {
         _osc2.synchronize(_osc1s[0]);
       }
-      output += oscMix * _osc2.synthesize() * (ring ? o1 : 1f);
-      output += oscSubVol * _oscSub.synthesize();
+      output += oscMix * _osc2.front * (ring ? o1 : 1f);
+      _osc2.popFront();
 
+      // oscSub
+      if (oscSubVol != 0) {
+        output += oscSubVol * _oscSub.front;
+        _oscSub.popFront();
+      }
       outputs[0][frame] = ampGain * output;
     }
     foreach (chan; 1 .. outputs.length) {
@@ -166,7 +171,6 @@ class Synth2Client : Client {
   }
 
  private:
-  ParamBuilder _builder;
   Oscillator _osc2, _oscSub;
   Oscillator[8] _osc1s;  // +7 for detune
   Synth2GUI _gui;
@@ -185,7 +189,7 @@ struct TestHost {
   
   /// Sets param to test.
   void setParam(Params pid, T)(T val) {
-    auto p = __traits(getMember, client._builder, paramNames[pid]);
+    auto p = __traits(getMember, ParamBuilder, paramNames[pid]);
     static if (is(T == Waveform)) {
       double v;
       assert(p.normalizedValueFromString(waveformNames[val], v));
@@ -296,11 +300,9 @@ unittest {
   foreach (wf; EnumMembers!Waveform) {
     host.setParam!(Params.osc1Waveform)(wf);
     host.setParam!(Params.osc2Waveform)(wf);
-    host.setParam!(Params.oscSubWaveform)(wf);
     host.processAudio();
-    assert(host.client._osc1s[0].waves[0].waveform == wf);
-    assert(host.client._osc2.waves[0].waveform == wf);    
-    assert(host.client._oscSub.waves[0].waveform == wf);    
+    assert(host.client._osc1s[0].lastUsedWave.waveform == wf);
+    assert(host.client._osc2.lastUsedWave.waveform == wf);
   }
 }
 

@@ -15,7 +15,6 @@ struct ADSR {
   float decayTime = 0;
   float sustainLevel = 1;
   float releaseTime = 0;
-  float frameWidth = 1.0 / 44100;
 
   @nogc nothrow @safe pure:
   
@@ -27,6 +26,12 @@ struct ADSR {
   void release() {
     this._releaseLevel = this.front;
     this._stage = Stage.release;
+    this._stageTime = 0;
+  }
+
+  void setSampleRate(float sampleRate) {
+    this.frameWidth = 1f / sampleRate;
+    this._stage = Stage.done;
     this._stageTime = 0;
   }
 
@@ -86,7 +91,8 @@ struct ADSR {
   }
 
  private:
-  Stage _stage = Stage.attack;
+  Stage _stage = Stage.done;
+  float frameWidth = 1.0 / 44100;
   float _stageTime = 0;
   float _releaseLevel;
 }

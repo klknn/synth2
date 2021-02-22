@@ -1,4 +1,11 @@
 {
+    "buildTypes": 
+    {
+	"unittest-opt": 
+	{
+            "buildOptions": ["unittests", "optimize", "inline"]
+	}
+    },
     "configurations": [
 	{
 	    "name": "LV2",

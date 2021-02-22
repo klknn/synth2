@@ -85,11 +85,39 @@ struct WaveformRange {
   }
 }
 
-/// MIDI per-voice status.
+/// Mono voice status (subosc).
 struct VoiceStatus {
-  bool isPlaying = false;
   int note = -1;
-  float gain = 1f;
+  private float gain = 1f;
+
+  WaveformRange wave;
+  ADSR envelope;
+
+  @nogc nothrow @safe:
+
+  bool isPlaying() const { return !this.envelope.empty; }
+  
+  float front() const {
+    if (!this.isPlaying) return 0f;
+    return this.wave.front * this.gain * this.envelope.front;
+  }
+
+  pure void popFront() {
+    this.wave.popFront();
+    this.envelope.popFront();
+  }
+
+  pure void setSampleRate(float sampleRate) {
+    this.wave.sampleRate = sampleRate;
+    this.wave.phase = 0;
+    this.envelope.setSampleRate(sampleRate);
+  }
+
+  pure void play(int note, float gain) {
+    this.gain = gain;
+    this.note = note;
+    this.envelope.attack();
+  }
 }
 
 /// Maps 0 to 127 into Decibel domain with affine transformation.
@@ -127,25 +155,21 @@ struct Oscillator
   enum voicesCount = 16;
 
   // Setters
-  void setWaveform(Waveform value) {
-    foreach (ref w; _waves) {
-      w.waveform = value;
+  pure void setWaveform(Waveform value) {
+    foreach (ref v; _voices) {
+      v.wave.waveform = value;
     }
   }
 
-  void setPulseWidth(float value) {
-    foreach (ref w; _waves) {
-      w.pulseWidth = value;
+  pure void setPulseWidth(float value) {
+    foreach (ref v; _voices) {
+      v.wave.pulseWidth = value;
     }
   }
   
-  void setSampleRate(float sampleRate) {
-    foreach (i; 0 .. voicesCount) {
-      _voices[i].isPlaying = false;
-      _waves[i].sampleRate = sampleRate;
-      _waves[i].phase = 0;
-      _envelopes[i].frameWidth = 1f / sampleRate;
-      _envelopes[i].attack;
+  pure void setSampleRate(float sampleRate) {
+    foreach (ref v; _voices) {
+      v.setSampleRate(sampleRate);
     }
   }
 
@@ -171,86 +195,72 @@ struct Oscillator
     }
   }
 
-  void setNoteTrack(bool b) {
+  pure void setNoteTrack(bool b) {
     _noteTrack = b;
   }
   
-  void setNoteDiff(float note) {
+  pure void setNoteDiff(float note) {
     _noteDiff = note;
   }
   
-  void setNoteDetune(float val) {
+  pure void setNoteDetune(float val) {
     _noteDiff = val;
   }
 
-  float note(VoiceStatus v) const {
+  pure float note(const ref VoiceStatus v) const {
     return (_noteTrack ? v.note : 69.0f) + _noteDiff + _noteDetune
         // TODO: fix pitch bend
         + _pitchBend * _pitchBendWidth;
   }
 
-  void synchronize(const ref Oscillator src) {
-    foreach (i, ref w; _waves) {
-      if (src._waves[i].normalized) {
-        w.phase = 0f;
+  pure void synchronize(const ref Oscillator src) {
+    foreach (i; 0 .. voicesCount) {
+      if (src._voices[i].wave.normalized) {
+        _voices[i].wave.phase = 0f;
       }
     }
   }
 
   void setFM(float scale, const ref Oscillator mod) {
     foreach (i; 0 .. voicesCount) {
-      _waves[i].phase += scale * mod.frontNth(i);
+      _voices[i].wave.phase += scale * mod._voices[i].front;
     }
   }
 
-  void setADSR(float a, float d, float s, float r) {
-    foreach (ref ADSR e; _envelopes) {
-      e.attackTime = a;
-      e.decayTime = d;
-      e.sustainLevel = s;
-      e.releaseTime = r;
+  pure void setADSR(float a, float d, float s, float r) {
+    foreach (ref v; _voices) {
+      v.envelope.attackTime = a;
+      v.envelope.decayTime = d;
+      v.envelope.sustainLevel = s;
+      v.envelope.releaseTime = r;
     }
   }
   
-  /// Synthesizes waveform sample.
-  float synthesize() @system {
-    this.popFront();
-    return this.front;
-  }
-
   enum empty = false;
 
   /// Returns sum of amplitudes of _waves at the current phase.
   float front() const {
     float sample = 0;
-    foreach (i; 0 .. voicesCount) {
-      sample += frontNth(i);
+    foreach (ref v; _voices) {
+      sample += v.front;
     }
     return sample / voicesCount;
   }
 
   /// Increments phase in _waves.
-  void popFront() {
-    foreach (i, ref w; _waves) {
-      w.popFront();
-      _envelopes[i].popFront();
-      if (_envelopes[i].empty) {
-        _voices[i].isPlaying = false;
-      }
+  pure void popFront() {
+    foreach (ref v; _voices) {
+      v.popFront();
     }
   }
 
   /// Updates frequency by MIDI and params.
   void updateFreq() @system {
-    foreach (i, ref w; _waves) {
-      if (_voices[i].isPlaying) {
-        w.freq = convertMIDINoteToFrequency(this.note(_voices[i]));
+    foreach (ref v; _voices) {
+      if (v.isPlaying) {
+        v.wave.freq = convertMIDINoteToFrequency(this.note(v));
       }
     }
-  }
-
-  auto waves() const {
-    return _waves;
   }
 
   auto voices() const {
@@ -258,15 +268,10 @@ struct Oscillator
   }
 
   auto lastUsedWave() const {
-    return _waves[_lastUsedId];
+    return _voices[_lastUsedId].wave;
   }
   
  private:
-  float frontNth(size_t i) const {
-    auto v = _voices[i];
-    if (!v.isPlaying) return 0f;
-    return _waves[i].front * v.gain * _envelopes[i].front;
-  }
 
   // TODO: use optional
   int getUnusedVoiceId() {
@@ -290,18 +295,15 @@ struct Oscillator
       */
       return;
     }
-    _voices[i].note = midi.noteNumber();
     const db =  velocityToDB(midi.noteVelocity(), this._velocitySense);
-    _voices[i].gain = convertDecibelToLinearGain(db);
-    _voices[i].isPlaying = true;
+    _voices[i].play(midi.noteNumber(), convertDecibelToLinearGain(db));
     _lastUsedId = i;
-    _envelopes[i].attack();
   }
 
   void markNoteOff(int note) {
-    foreach (i, ref v; this._voices) {
-      if (v.isPlaying && (v.note == note)) {
-        _envelopes[i].release();
+    foreach (ref v; this._voices) {
+      if (v.isPlaying && v.note == note) {
+        v.envelope.release();
       }
     }
   }
@@ -316,8 +318,6 @@ struct Oscillator
   size_t _lastUsedId = 0;
 
   VoiceStatus[voicesCount] _voices;
-  WaveformRange[voicesCount] _waves;
-  ADSR[voicesCount] _envelopes;
 }
 
 @system
