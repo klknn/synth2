@@ -15,7 +15,7 @@ import dplug.client.params : BoolParameter, EnumParameter, FloatParameter,
   Parameter, PowFloatParameter;
 
 import synth2.oscillator : Waveform, waveformNames;
-
+import synth2.filter : filterNames, FilterKind;
 
 /// Parameter ids.
 enum Params : int {
@@ -45,6 +45,11 @@ enum Params : int {
   ampRelease,
   ampGain,
   ampVel,
+
+  /// Filter section
+  filterKind,
+  filterCutoff,
+  filterQ,
 }
 
 static immutable paramNames = [__traits(allMembers, Params)];
@@ -152,7 +157,22 @@ struct ParamBuilder {
     return mallocNew!LinearFloatParameter(
         Params.ampVel, "Amp/Vel", "", 0, 1.0, 0);
   }
-    
+
+  static filterKind() {
+    return mallocNew!EnumParameter(
+        Params.filterKind, "Filter/kind", filterNames, FilterKind.lowpass);
+  }
+
+  static filterCutoff() {
+    return mallocNew!LogFloatParameter(
+        Params.filterCutoff, "Filter/cutoff", "%", logBias, 100, logBias);
+  }
+
+  static filterQ() {
+    return mallocNew!LinearFloatParameter(
+        Params.filterQ, "Filter/Q", "%", 0, 100, 0);
+  }
+  
   @nogc nothrow:
   static Parameter[] buildParameters() {
     auto params = makeVec!Parameter(EnumMembers!Params.length);
