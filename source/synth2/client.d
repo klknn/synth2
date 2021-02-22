@@ -79,8 +79,16 @@ class Synth2Client : Client {
     const ampGain = exp2(readParam!float(Params.ampGain));
     if (ampGain == 0) return;  // no output
     
-    // Bind Osc params.
+    // Check osc usage.
     const osc1Det = readParam!float(Params.osc1Det);
+    const oscMix = readParam!float(Params.oscMix);
+    const sync = readParam!bool(Params.osc2Sync);
+    const ring = readParam!bool(Params.osc2Ring);
+    const fm = readParam!float(Params.osc1FM);
+    const doFM = !sync && !ring && fm > 0;
+    const useOsc2 = oscMix != 0 || sync || ring || fm > 0;
+    const oscSubVol = exp2(readParam!float(Params.oscSubVol));
+
     const pw = readParam!float(Params.oscPulseWidth);
     const vel = readParam!float(Params.ampVel);
 
@@ -92,50 +100,45 @@ class Synth2Client : Client {
     foreach (i, ref _osc1; _osc1s) {
       _osc1.setWaveform(readParam!Waveform(Params.osc1Waveform));
       _osc1.setPulseWidth(pw);
-      _osc1.setVelocitySense(vel);
       _osc1.setADSR(attack, decay, sustain, release);
+      _osc1.setVelocitySense(vel);
       if (osc1Det == 0) break; // skip detuned osc1s
       _osc1.setNoteDetune(log(osc1Det + 1f) * 2 *
                           log(i + 1f) / log(cast(float) _osc1s.length));
     }
 
-    _osc2.setWaveform(readParam!Waveform(Params.osc2Waveform));
-    _osc2.setPulseWidth(pw);
-    _osc2.setNoteTrack(readParam!bool(Params.osc2Track));
-    _osc2.setNoteDiff(readParam!int(Params.osc2Pitch) +
-                      readParam!float(Params.osc2Fine));
-    _osc2.setVelocitySense(vel);
-    _osc2.setADSR(attack, decay, sustain, release);
+    if (useOsc2) {
+      _osc2.setWaveform(readParam!Waveform(Params.osc2Waveform));
+      _osc2.setPulseWidth(pw);
+      _osc2.setNoteTrack(readParam!bool(Params.osc2Track));
+      _osc2.setNoteDiff(readParam!int(Params.osc2Pitch) +
+                        readParam!float(Params.osc2Fine));
 
-    const oscSubVol = exp2(readParam!float(Params.oscSubVol));
+      _osc2.setADSR(attack, decay, sustain, release);
+    }
+
     if (oscSubVol != 0) {
       _oscSub.setWaveform(readParam!Waveform(Params.oscSubWaveform));
       _oscSub.setNoteDiff(readParam!bool(Params.oscSubOct) ? -12 : 0);
       _oscSub.setVelocitySense(vel);
       _oscSub.setADSR(attack, decay, sustain, release);
     }
+
     // Setup freq by MIDI and params.
     foreach (msg; this.getNextMidiMessages(frames)) {
       foreach (ref o1; _osc1s) {
         o1.setMidi(msg);
         if (osc1Det == 0) break;
       }
-      _osc2.setMidi(msg);
+      if (useOsc2) _osc2.setMidi(msg);
       if (oscSubVol != 0) _oscSub.setMidi(msg);
     }
     foreach (ref o; _osc1s) {
       o.updateFreq();
       if (osc1Det == 0) break;
     }
-    _osc2.updateFreq();
+    if (useOsc2) _osc2.updateFreq();
     if (oscSubVol != 0) _oscSub.updateFreq();
-
-    // Read remaining params for sample generation.
-    const oscMix = readParam!float(Params.oscMix);
-    const sync = readParam!bool(Params.osc2Sync);
-    const ring = readParam!bool(Params.osc2Ring);
-    const fm = readParam!float(Params.osc1FM);
-    const doFM = !sync && !ring && fm > 0;
 
     // Generate samples.    
     foreach (frame; 0 .. frames) {
@@ -152,11 +155,13 @@ class Synth2Client : Client {
       float output = (1.0 - oscMix) * o1;
 
       // osc2
-      if (sync) {
-        _osc2.synchronize(_osc1s[0]);
+      if (useOsc2) {
+        if (sync) {
+          _osc2.synchronize(_osc1s[0]);
+        }
+        output += oscMix * _osc2.front * (ring ? o1 : 1f);
+        _osc2.popFront();
       }
-      output += oscMix * _osc2.front * (ring ? o1 : 1f);
-      _osc2.popFront();
 
       // oscSub
       if (oscSubVol != 0) {
@@ -297,12 +302,16 @@ unittest {
   TestHost host = { mallocNew!Synth2Client() };
   scope (exit) destroyFree(host.client);
 
+  host.setParam!(Params.oscMix)(0.5);
+  host.setParam!(Params.oscSubVol)(0.5);
   foreach (wf; EnumMembers!Waveform) {
     host.setParam!(Params.osc1Waveform)(wf);
     host.setParam!(Params.osc2Waveform)(wf);
+    host.setParam!(Params.oscSubWaveform)(wf);
     host.processAudio();
     assert(host.client._osc1s[0].lastUsedWave.waveform == wf);
     assert(host.client._osc2.lastUsedWave.waveform == wf);
+    assert(host.client._oscSub.lastUsedWave.waveform == wf);
   }
 }
 
@@ -344,6 +353,7 @@ unittest {
   scope (exit) destroyFree(host.client);
 
   // Check initial pitch.
+  host.setParam!(Params.oscMix)(1.0);  
   host.setParam!(Params.osc2Track)(false);
   host.processAudio();
   assert(host.client._osc2.lastUsedWave.freq == 440);
