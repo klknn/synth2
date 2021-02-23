@@ -16,11 +16,11 @@ import dplug.client.client : Client, LegalIO, parsePluginInfo, PluginInfo, TimeI
 import dplug.client.graphics : IGraphics;
 import dplug.client.dllmain : DLLEntryPoint, pluginEntryPoints;
 import dplug.client.params : Parameter;
-import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn;
+import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn, makeMidiMessageNoteOff;
 import mir.math : exp2, log, sqrt, PI;
 
 import synth2.filter : Filter, FilterKind, filterNames;
-import synth2.gui : Synth2GUI;
+version (unittest) {} else import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator, Waveform, waveformNames;
 import synth2.params : Params, ParamBuilder, paramNames;
 
@@ -36,6 +36,7 @@ class Synth2Client : Client {
   nothrow @nogc:
 
   // NOTE: this method will not call until GUI required (lazy)
+  version (unittest) {} else
   override IGraphics createGraphics() {
     _gui = mallocNew!Synth2GUI(
         this.param(Params.osc1Waveform),
@@ -210,7 +211,7 @@ class Synth2Client : Client {
   Filter _filter;
   Oscillator _osc2, _oscSub;
   Oscillator[8] _osc1s;  // +7 for detune
-  Synth2GUI _gui;
+  version (unittest) {} else Synth2GUI _gui;
 }
 
 
@@ -221,6 +222,7 @@ struct TestHost {
   Vec!float[2] outputFrames;
   MidiMessage msg1 = makeMidiMessageNoteOn(0, 0, 100, 100);
   MidiMessage msg2 = makeMidiMessageNoteOn(1, 0, 90, 90);
+  MidiMessage msg3 = makeMidiMessageNoteOff(2, 0, 100);
 
   @nogc nothrow:
 
@@ -251,7 +253,7 @@ struct TestHost {
     client.param(pid).setFromHost(v);
   }
 
-  void processAudio() {
+  void processAudio(bool noteOff = false) {
     outputFrames[0].resize(this.frames);
     outputFrames[1].resize(this.frames);
     client.reset(44100, 32, 0, 2);
@@ -264,6 +266,9 @@ struct TestHost {
 
     client.enqueueMIDIFromHost(msg1);
     client.enqueueMIDIFromHost(msg2);
+    if (noteOff) {
+      client.enqueueMIDIFromHost(msg3);
+    }
 
     TimeInfo info;
     client.processAudio(inputs[], outputs[], frames, info);
@@ -318,18 +323,20 @@ unittest {
   TestHost host = { client: mallocNew!Synth2Client(), frames: N };
   scope (exit) destroyFree(host.client);
 
-  // 1st
-  host.processAudio();
-  prev[] = host.outputFrames[0][];
-  bool notNaN = true;
-  foreach (x; prev) {
-    notNaN &= x != float.init;
-  }
-  assert(notNaN);
+  foreach (noteOff; [false, true]) {
+    // 1st
+    host.processAudio(noteOff);
+    prev[] = host.outputFrames[0][];
+    bool notNaN = true;
+    foreach (x; prev) {
+      notNaN &= x != float.init;
+    }
+    assert(notNaN);
 
-  // 2nd
-  host.processAudio();
-  assert(prev[] == host.outputFrames[0][]);
+    // 2nd
+    host.processAudio(noteOff);
+    assert(prev[] == host.outputFrames[0][]);
+  }
 }
 
 /// Test changing waveforms.

@@ -44,8 +44,7 @@ struct ADSR {
         return this.attackTime == 0 ? 1 : (this._stageTime / this.attackTime);
       case Stage.decay:
         return this.decayTime == 0
-            ? 1
-            : (this._stageTime * (this.sustainLevel -  1f) /  this.decayTime + 1f);
+            ? 1 : (this._stageTime * (this.sustainLevel -  1f) /  this.decayTime + 1f);
       case Stage.sustain:
         return this.sustainLevel;
       case Stage.release:
@@ -129,5 +128,6 @@ unittest {
     }
     assert(env._stage == Stage.done);
     assert(env.empty);
+    assert(env.front == 0);
   }
 }

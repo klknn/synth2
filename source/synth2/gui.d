@@ -4,6 +4,8 @@
 */
 module synth2.gui;
 
+version (unittest) {} else:
+
 private {
 import dplug.core : mallocNew, destroyFree;
 import dplug.graphics.color : RGBA;
