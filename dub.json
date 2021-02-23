@@ -1,74 +1,81 @@
 {
-    "buildTypes": 
+    "buildTypes":
     {
-	"unittest-opt": 
-	{
+        "unittest-opt":
+        {
             "buildOptions": ["unittests", "optimize", "inline"]
-	}
+        }
     },
     "configurations": [
-	{
-	    "name": "LV2",
-	    "targetType": "dynamicLibrary",
-	    "versions": [
-		"LV2"
-	    ],
-	    "dependencies": {
-		"dplug:lv2": "~>10.2.1",
-	    },
-	},
-	{
-	    "name": "VST3",
-	    "targetType": "dynamicLibrary",
-	    "versions": [
-		"VST3"
-	    ],
-	    "dependencies": {
-		"dplug:vst3": "~>10.2.1",
-	    },
-	},
-	{
-	    "name": "VST",
-	    "targetType": "dynamicLibrary",
-	    "versions": [
-		"VST"
-	    ],
-	    "dependencies": {
-		"dplug:vst": "~>10.2.1",
-	    },
-	},
-	{
+        {
+            "name": "LV2",
+            "targetType": "dynamicLibrary",
+            "versions": [
+                "LV2"
+            ],
+            "dependencies": {
+                "dplug:lv2": "~>10.2.1",
+            },
+            "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst", "-dead_strip" ],
+            "lflags-linux-ldc": [ "--version-script=resource/module-lv2.ver" ],
+        },
+        {
+            "name": "VST3",
+            "targetType": "dynamicLibrary",
+            "versions": [
+                "VST3"
+            ],
+            "dependencies": {
+                "dplug:vst3": "~>10.2.1",
+            },
+            "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst3.lst", "-dead_strip" ],
+            "lflags-linux-ldc": [ "--version-script=resource/module-vst3.ver" ]
+        },
+        {
+            "name": "VST",
+            "targetType": "dynamicLibrary",
+            "versions": [
+                "VST"
+            ],
+            "dependencies": {
+                "dplug:vst": "~>10.2.1",
+            },
+            "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst.lst", "-dead_strip" ],
+            "lflags-linux-ldc": [ "--version-script=resource/module-vst.ver" ]
+        },
+        {
             "name": "AU",
             "versions": ["AU"],
             "targetType": "dynamicLibrary",
-	    "dependencies": {
-		"dplug:au": "~>10.2.1",
-	    },
+            "dependencies": {
+                "dplug:au": "~>10.2.1",
+            },
+            "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-au.lst", "-dead_strip" ]
         },
     ],
     "dependencies": {
-	"dplug:pbr-widgets": "~>10.2.1",
-	"mir-random": "~>2.2.15"
+        "dplug:pbr-widgets": "~>10.2.1",
+        "mir-random": "~>2.2.15"
     },
     "dflags-linux-dmd": [
-	"-defaultlib=libphobos2.a"
+        "-defaultlib=libphobos2.a"
     ],
     "dflags-linux-ldc": [
-	"-link-defaultlib-shared=false"
+        "-link-defaultlib-shared=false"
     ],
     "dflags-linux-x86_64-ldc": [
-	"-fvisibility=hidden"
+        "-fvisibility=hidden"
     ],
     "dflags-osx-ldc": [
-	"-static"
+        "-static"
     ],
     "dflags-windows-ldc": [
-	"-mscrtlib=libcmt"
+        "-mscrtlib=libcmt"
     ],
     "name": "synth2",
     "stringImportPaths": [
-	".",
-	"resource",
+        ".",
+        "resource",
     ],
     "targetType": "dynamicLibrary",
 }
