@@ -5,12 +5,17 @@
 
 Simple virtual-analog synth aims to be Synth1 written in D.
 
+WARNING: this plugin is very unstable.
+
 ## How to build this plugin?
 
 https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
 
 ## Features (TODO)
 
+- [x] Multi-platform
+  - [x] VST/VST3/AU CI build
+  - [x] Windows/Linux CI test (macOS won't be tested because I don't have it)
 - [ ] GUI
   - [ ] buttons
   - [ ] knobs
@@ -21,13 +26,15 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
   - [x] 2nd/sub osc
   - [x] detune
   - [x] sync
-  - [ ] pitch bend
-  - [ ] FM
-  - [ ] AM (ring)
-- [ ] Amplifier
+  - [x] FM
+  - [x] AM (ring)
+  - [ ] mod envelope
+- [x] Amplifier
   - [x] velocity sensitivity
-  - [ ] ADSR
+  - [x] ADSR
 - [ ] Filter
+  - [x] HP6/HP12/LP6/LP12/LP24/LPDL(TB303 like filter)
+  - [ ] ADSR
 - [ ] LFO
 - [ ] Arpeggiator
 - [ ] Effect
@@ -35,9 +42,12 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
 - [ ] Tempo Delay
 - [ ] Chorus / Flanger
 - [ ] Voice
-- [ ] Control change
 - [ ] Presets
-- [ ] Program change
+- [ ] MIDI
+  - [ ] Pitch bend
+  - [ ] Mod wheel
+  - [ ] Control change
+  - [ ] Program change
 
 
 ## History

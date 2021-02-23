@@ -9,11 +9,11 @@ import mir.math : approxEqual, PI, SQRT2;
 @nogc nothrow @safe pure:
 
 enum FilterKind {
-  LP6,
   HP6,
-  LP12,
   HP12,
   BP12,
+  LP6,
+  LP12,
   LP24,
   LPDL,
 }

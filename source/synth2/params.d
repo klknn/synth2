@@ -165,7 +165,7 @@ struct ParamBuilder {
 
   static filterCutoff() {
     return mallocNew!LogFloatParameter(
-        Params.filterCutoff, "Filter/cutoff", "%", logBias, 100, logBias);
+        Params.filterCutoff, "Filter/cutoff", "%", logBias, 100, 100);
   }
 
   static filterQ() {
