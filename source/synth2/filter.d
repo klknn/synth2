@@ -22,7 +22,7 @@ static immutable filterNames = [__traits(allMembers, FilterKind)];
 
 struct Filter {
   @nogc nothrow @safe pure:
-  
+
   float apply(float input) {
     // TODO: use ring buffer
     foreach_reverse (i; 1 .. nFIR) {

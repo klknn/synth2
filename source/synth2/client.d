@@ -17,9 +17,9 @@ import dplug.client.graphics : IGraphics;
 import dplug.client.dllmain : DLLEntryPoint, pluginEntryPoints;
 import dplug.client.params : Parameter;
 import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn;
-import mir.math.common : exp2, log, sqrt;
+import mir.math : exp2, log, sqrt, PI;
 
-import synth2.filter : Filter, FilterKind;
+import synth2.filter : Filter, FilterKind, filterNames;
 import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator, Waveform, waveformNames;
 import synth2.params : Params, ParamBuilder, paramNames;
@@ -80,20 +80,23 @@ class Synth2Client : Client {
 
     const ampGain = exp2(readParam!float(Params.ampGain));
     if (ampGain == 0) return;  // no output
-    
+
     const oscMix = readParam!float(Params.oscMix);
     const sync = readParam!bool(Params.osc2Sync);
     const ring = readParam!bool(Params.osc2Ring);
     const fm = readParam!float(Params.osc1FM);
     const doFM = !sync && !ring && fm > 0;
 
-    const pw = readParam!float(Params.oscPulseWidth);
-    const vel = readParam!float(Params.ampVel);
-
     const attack = readParam!float(Params.ampAttack) - ParamBuilder.logBias;
     const decay = readParam!float(Params.ampDecay) - ParamBuilder.logBias;
     const sustain = exp2(readParam!float(Params.ampSustain));
     const release = readParam!float(Params.ampRelease) - ParamBuilder.logBias;
+
+    const oscKeyShift = readParam!int(Params.oscKeyShift);
+    const oscTune = readParam!float(Params.oscTune);
+    const oscPhase = readParam!float(Params.oscPhase);
+    const pw = readParam!float(Params.oscPulseWidth);
+    const vel = readParam!float(Params.ampVel);
 
     const useOsc1 = oscMix != 1 || sync || ring || fm > 0;
     const osc1Det = readParam!float(Params.osc1Det);
@@ -103,6 +106,10 @@ class Synth2Client : Client {
         _osc1.setPulseWidth(pw);
         _osc1.setVelocitySense(vel);
         _osc1.setADSR(attack, decay, sustain, release);
+        _osc1.setNoteDiff(oscKeyShift + oscTune);
+        if (oscPhase != ParamBuilder.ignoreOscPhase) {
+          _osc1.setInitialPhase(oscPhase);
+        }
         if (osc1Det == 0) break; // skip detuned osc1s
         _osc1.setNoteDetune(log(osc1Det + 1f) * 2 *
                             log(i + 1f) / log(cast(float) _osc1s.length));
@@ -114,18 +121,26 @@ class Synth2Client : Client {
       _osc2.setWaveform(readParam!Waveform(Params.osc2Waveform));
       _osc2.setPulseWidth(pw);
       _osc2.setNoteTrack(readParam!bool(Params.osc2Track));
-      _osc2.setNoteDiff(readParam!int(Params.osc2Pitch) +
-                        readParam!float(Params.osc2Fine));
+      _osc2.setNoteDiff(
+          oscKeyShift + oscTune +
+          readParam!int(Params.osc2Pitch) + readParam!float(Params.osc2Fine));
       _osc2.setVelocitySense(vel);
       _osc2.setADSR(attack, decay, sustain, release);
+      if (oscPhase != ParamBuilder.ignoreOscPhase) {
+        _osc2.setInitialPhase(oscPhase);
+      }
     }
 
     const oscSubVol = exp2(readParam!float(Params.oscSubVol));
     if (oscSubVol != 0) {
       _oscSub.setWaveform(readParam!Waveform(Params.oscSubWaveform));
-      _oscSub.setNoteDiff(readParam!bool(Params.oscSubOct) ? -12 : 0);
+      _oscSub.setNoteDiff(
+          oscKeyShift + oscTune + readParam!bool(Params.oscSubOct) ? -12 : 0);
       _oscSub.setVelocitySense(vel);
       _oscSub.setADSR(attack, decay, sustain, release);
+      if (oscPhase != ParamBuilder.ignoreOscPhase) {
+        _oscSub.setInitialPhase(oscPhase);
+      }
     }
 
     // Setup freq by MIDI and params.
@@ -153,8 +168,8 @@ class Synth2Client : Client {
         readParam!float(Params.filterCutoff),
         readParam!float(Params.filterQ),
     );
-    
-    // Generate samples.    
+
+    // Generate samples.
     foreach (frame; 0 .. frames) {
       // osc1
       float o1 = 0;
@@ -203,18 +218,22 @@ class Synth2Client : Client {
 struct TestHost {
   Synth2Client client;
   int frames = 8;
-  Vec!float[2] outputFrames; 
+  Vec!float[2] outputFrames;
   MidiMessage msg1 = makeMidiMessageNoteOn(0, 0, 100, 100);
   MidiMessage msg2 = makeMidiMessageNoteOn(1, 0, 90, 90);
 
   @nogc nothrow:
-  
+
   /// Sets param to test.
   void setParam(Params pid, T)(T val) {
     auto p = __traits(getMember, ParamBuilder, paramNames[pid]);
     static if (is(T == Waveform)) {
       double v;
       assert(p.normalizedValueFromString(waveformNames[val], v));
+    }
+    else static if (is(T == FilterKind)) {
+      double v;
+      assert(p.normalizedValueFromString(filterNames[val], v));
     }
     else static if (is(T == bool)) {
       auto v = val ? 1.0 : 0.0;
@@ -231,7 +250,7 @@ struct TestHost {
     }
     client.param(pid).setFromHost(v);
   }
-  
+
   void processAudio() {
     outputFrames[0].resize(this.frames);
     outputFrames[1].resize(this.frames);
@@ -245,15 +264,15 @@ struct TestHost {
 
     client.enqueueMIDIFromHost(msg1);
     client.enqueueMIDIFromHost(msg2);
-    
+
     TimeInfo info;
-    client.processAudio(inputs[], outputs[], frames, info);    
+    client.processAudio(inputs[], outputs[], frames, info);
   }
 
   /// Returns true iff the val changes outputs of processAudio.
   bool paramChangeOutputs(Params pid, T)(T val) {
     double origin = this.client.param(pid).getForHost;
-    
+
     // 1st trial w/o param
     this.processAudio();
     auto prev = makeVec!float(this.frames);
@@ -267,7 +286,7 @@ struct TestHost {
 
     // revert param
     this.client.param(pid).setFromHost(origin);
-    
+
     foreach (i; 0 .. frames) {
       if (prev[i] != outputFrames[0][i])
         return true;
@@ -281,7 +300,7 @@ struct TestHost {
 unittest {
   import core.stdc.stdio : printf;
   import std.datetime.stopwatch : benchmark;
-  
+
   TestHost host = { client: mallocNew!Synth2Client(), frames: 100 };
   scope (exit) destroyFree(host.client);
 
@@ -348,18 +367,32 @@ unittest {
   scope (exit) destroyFree(host.client);
 
   assert(host.paramChangeOutputs!(Params.osc1Det)(1.0));
-  
+
   host.processAudio();
   // Check the detune osc1s are NOT playing.
   foreach (o; host.client._osc1s[1 .. $]) {
     assert(!o.voices[0].isPlaying);
   }
-  
+
   host.setParam!(Params.osc1Det)(1.0);
   host.processAudio();
   // Check all the osc1s are playing.
   foreach (o; host.client._osc1s) {
     assert(o.voices[0].isPlaying);
+  }
+}
+
+/// Test oscKeyShift/oscTune/oscPhase.
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  foreach (mix; [0.0, 1.0]) {
+    host.setParam!(Params.oscMix)(mix);
+    assert(host.paramChangeOutputs!(Params.oscKeyShift)(12));
+    assert(host.paramChangeOutputs!(Params.oscTune)(0.5));
+    assert(host.paramChangeOutputs!(Params.oscPhase)(0.5));
   }
 }
 
@@ -370,7 +403,7 @@ unittest {
   scope (exit) destroyFree(host.client);
 
   // Check initial pitch.
-  host.setParam!(Params.oscMix)(1.0);  
+  host.setParam!(Params.oscMix)(1.0);
   host.setParam!(Params.osc2Track)(false);
   host.processAudio();
   assert(host.client._osc2.lastUsedWave.freq == 440);
@@ -438,4 +471,18 @@ unittest {
   TestHost host = { mallocNew!Synth2Client() };
   scope (exit) destroyFree(host.client);
   assert(host.paramChangeOutputs!(Params.ampVel)(1.0));
+}
+
+/// Test filter
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+  foreach (fkind; EnumMembers!FilterKind) {
+    host.setParam!(Params.filterKind)(fkind);
+    assert(host.paramChangeOutputs!(Params.filterCutoff)(50));
+    if (fkind != FilterKind.HP6 && fkind != FilterKind.LP6) {
+      assert(host.paramChangeOutputs!(Params.filterQ)(50));
+    }
+  }
 }

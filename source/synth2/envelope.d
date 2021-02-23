@@ -17,7 +17,7 @@ struct ADSR {
   float releaseTime = 0;
 
   @nogc nothrow @safe pure:
-  
+
   void attack() {
     this._stage = Stage.attack;
     this._stageTime = 0;
@@ -110,7 +110,7 @@ unittest {
   foreach (_; 0 .. 2) {
     env.attack();
     foreach (i; 0 .. env.attackTime) {
-      assert(env._stage == Stage.attack);  
+      assert(env._stage == Stage.attack);
       env.popFront();
     }
     foreach (i; 0 .. env.decayTime) {

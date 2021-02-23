@@ -40,11 +40,11 @@ struct WaveformRange {
   float pulseWidth = 0.5;
   Waveform waveform = Waveform.sine;
   static rng = Xoshiro128StarStar_32(0u);
-  
+
   @safe nothrow @nogc:
 
   enum empty = false;
-  
+
   float front() const {
     final switch (this.waveform) {
       case Waveform.saw:
@@ -57,9 +57,9 @@ struct WaveformRange {
         return 2f * fmin(this.phase, TAU - this.phase) / PI - 1f;
       case Waveform.noise:
         return rand!float(this.rng);
-    }    
+    }
   }
-  
+
   pure void popFront() {
     this.phase += this.freq * TAU / this.sampleRate;
     this.normalized = false;
@@ -75,7 +75,7 @@ struct WaveformRange {
   import std.range;
   assert(isInputRange!WaveformRange);
   assert(isInfinite!WaveformRange);
-  
+
   WaveformRange w;
   w.waveform = Waveform.noise;
   foreach (_; 0 .. 10) {
@@ -96,7 +96,7 @@ struct VoiceStatus {
   @nogc nothrow @safe:
 
   bool isPlaying() const { return !this.envelope.empty; }
-  
+
   float front() const {
     if (!this.isPlaying) return 0f;
     return this.wave.front * this.gain * this.envelope.front;
@@ -155,6 +155,10 @@ struct Oscillator
   enum voicesCount = 16;
 
   // Setters
+  pure void setInitialPhase(float value) {
+    this._initialPhase = value;
+  }
+
   pure void setWaveform(Waveform value) {
     foreach (ref v; _voices) {
       v.wave.waveform = value;
@@ -166,7 +170,7 @@ struct Oscillator
       v.wave.pulseWidth = value;
     }
   }
-  
+
   pure void setSampleRate(float sampleRate) {
     foreach (ref v; _voices) {
       v.setSampleRate(sampleRate);
@@ -198,11 +202,11 @@ struct Oscillator
   pure void setNoteTrack(bool b) {
     _noteTrack = b;
   }
-  
+
   pure void setNoteDiff(float note) {
     _noteDiff = note;
   }
-  
+
   pure void setNoteDetune(float val) {
     _noteDiff = val;
   }
@@ -235,7 +239,7 @@ struct Oscillator
       v.envelope.releaseTime = r;
     }
   }
-  
+
   enum empty = false;
 
   /// Returns sum of amplitudes of _waves at the current phase.
@@ -270,7 +274,7 @@ struct Oscillator
   auto lastUsedWave() const {
     return _voices[_lastUsedId].wave;
   }
-  
+
  private:
 
   // TODO: use optional
@@ -297,6 +301,8 @@ struct Oscillator
     }
     const db =  velocityToDB(midi.noteVelocity(), this._velocitySense);
     _voices[i].play(midi.noteNumber(), convertDecibelToLinearGain(db));
+    if (this._initialPhase != -PI)
+      _voices[i].wave.phase = this._initialPhase;
     _lastUsedId = i;
   }
 
@@ -309,6 +315,7 @@ struct Oscillator
   }
 
   // voice global config
+  float _initialPhase = 0.0;
   float _noteDiff = 0.0;
   float _noteDetune = 0.0;
   bool _noteTrack = true;

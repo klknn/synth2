@@ -13,6 +13,7 @@ import dplug.core.vec : makeVec, Vec;
 import dplug.client.params : BoolParameter, EnumParameter, FloatParameter,
   GainParameter, IntegerParameter, LinearFloatParameter, LogFloatParameter,
   Parameter, PowFloatParameter;
+import mir.math.constant : PI;
 
 import synth2.oscillator : Waveform, waveformNames;
 import synth2.filter : filterNames, FilterKind;
@@ -23,17 +24,20 @@ enum Params : int {
   osc1Waveform,
   osc1Det,
   osc1FM,
+
   osc2Waveform,
   osc2Ring,
   osc2Sync,
   osc2Track,
   osc2Pitch,
   osc2Fine,
+
   oscMix,
-  // oscKeyShift,
+  oscKeyShift,
+  oscTune,
+  oscPhase,
+
   oscPulseWidth,
-  // oscPhase,
-  // oscTune,
   oscSubWaveform,
   oscSubVol,
   oscSubOct,
@@ -67,7 +71,7 @@ struct ParamBuilder {
     return mallocNew!LinearFloatParameter(
         Params.osc1Det, "Osc1/Det", "", 0, 1, 0);
   }
-  
+
   static osc1FM() {
     return mallocNew!LinearFloatParameter(
         Params.osc1FM, "Osc1/FM", "", 0, 10, 0);
@@ -106,11 +110,28 @@ struct ParamBuilder {
         Params.oscMix, "Osc/Mix", "", 0f, 1f, 0f);
   }
 
+  static oscKeyShift() {
+    return mallocNew!IntegerParameter(
+        Params.oscKeyShift, "Osc/KeyShift", "semitone", -60, 60, 0);
+  }
+
+  static oscTune() {
+    return mallocNew!LinearFloatParameter(
+        Params.oscTune, "Osc/Tune", "cent", -1.0, 1.0, 0);
+  }
+
+  enum float ignoreOscPhase = -PI;
+
+  static oscPhase() {
+    return mallocNew!LinearFloatParameter(
+        Params.oscPhase, "Osc/Phase", "", -PI, PI, ignoreOscPhase);
+  }
+
   static oscPulseWidth() {
     return mallocNew!LinearFloatParameter(
         Params.oscPulseWidth, "Osc/PW", "", 0f, 1f, 0.5f);
   }
-  
+
   static oscSubWaveform() {
     return mallocNew!EnumParameter(
         Params.oscSubWaveform, "OscSub/Wave", waveformNames, Waveform.sine);
@@ -128,7 +149,7 @@ struct ParamBuilder {
 
   // Epsilon value to avoid NaN in log.
   enum logBias = 1e-3;
-  
+
   static ampAttack() {
     return mallocNew!LogFloatParameter(
         Params.ampAttack, "Amp/Att", "sec", logBias, 100.0, logBias);
@@ -152,7 +173,7 @@ struct ParamBuilder {
   static ampGain() {
     return mallocNew!GainParameter(Params.ampGain, "Amp/Gain", 3.0, 0.0);
   }
-    
+
   static ampVel() {
     return mallocNew!LinearFloatParameter(
         Params.ampVel, "Amp/Vel", "", 0, 1.0, 0);
@@ -172,7 +193,7 @@ struct ParamBuilder {
     return mallocNew!LinearFloatParameter(
         Params.filterQ, "Filter/Q", "%", 0, 100, 0);
   }
-  
+
   @nogc nothrow:
   static Parameter[] buildParameters() {
     auto params = makeVec!Parameter(EnumMembers!Params.length);

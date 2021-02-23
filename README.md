@@ -16,11 +16,6 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
 - [x] Multi-platform
   - [x] VST/VST3/AU CI build
   - [x] Windows/Linux CI test (macOS won't be tested because I don't have it)
-- [ ] GUI
-  - [ ] buttons
-  - [ ] knobs
-  - [ ] labels (background png?)
-  - [ ] color config
 - [ ] Oscillators
   - [x] sin/saw/square/triangle/noise waves
   - [x] 2nd/sub osc
@@ -28,6 +23,7 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
   - [x] sync
   - [x] FM
   - [x] AM (ring)
+  - [x] master control (keyshift/tune/phase/mix/PW)
   - [ ] mod envelope
 - [x] Amplifier
   - [x] velocity sensitivity
@@ -35,6 +31,11 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
 - [ ] Filter
   - [x] HP6/HP12/LP6/LP12/LP24/LPDL(TB303 like filter)
   - [ ] ADSR
+- [ ] GUI
+  - [ ] buttons
+  - [ ] knobs
+  - [ ] labels (background png?)
+  - [ ] color config
 - [ ] LFO
 - [ ] Arpeggiator
 - [ ] Effect

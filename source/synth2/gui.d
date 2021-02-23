@@ -28,7 +28,7 @@ class Synth2GUI : PBRBackgroundGUI!(png, "black600.png", png, png, png, "")
 {
 public:
   nothrow @nogc:
-      
+
   enum marginW = 10;
   enum marginH = 10;
   enum screenWidth = 600;
@@ -53,7 +53,7 @@ public:
     // y += 50;
     auto osc = addLabel("[Oscillators]");
     osc.position(box2i.rectangle(marginW + 20, 30, 100, 50));
-    
+
     // addOnOffSwitch("saw", box2i.rectangle(marginW, screenWidth - 100, 10, 10));
   }
 
@@ -78,4 +78,3 @@ public:
 private:
   Font _font;
 }
-
