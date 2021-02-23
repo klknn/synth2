@@ -4,7 +4,7 @@
 /// See_also https://www.discodsp.net/VAFilterDesign_2.1.0.pdf
 module synth2.filter;
 
-import mir.math : approxEqual, PI, SQRT2;
+import mir.math : approxEqual, PI, SQRT2, fmax;
 
 @nogc nothrow @safe pure:
 
@@ -57,12 +57,23 @@ struct Filter {
       y[] = 0f;
     }
     this.kind = kind;
-    float Q = kind == FilterKind.LPDL
-              ? q * 0.17
-              : q / 10 + 1 / SQRT2;
-    float T = 1 / sampleRate;
-    float w0 = 2 * PI * freqPercent / 100f * sampleRate;
-    float den = Q * T * T * w0 * w0 + 4 * Q + 2 * T * w0;
+
+    // To prevent filter oscillation.
+    float Q;
+    if (kind == FilterKind.LPDL) {
+      Q = q * 0.16 + 1 / SQRT2;
+      freqPercent += 0.5;
+    }
+    else if (kind == FilterKind.LP24) {
+      Q = q * 0.86 * 0.05 + 1 / SQRT2;
+      freqPercent += 0.5;
+    }
+    else {
+      Q = q * 0.05 + 1 / SQRT2;
+    }
+    // const Q = (kind == FilterKind.LPDL) ? (q * 0.16) : (q * 0.05 + 1 / SQRT2);
+    const T = 1 / sampleRate;
+    const w0 = 2 * PI * freqPercent * 1.5 / 100f * sampleRate;
     final switch (kind) {
       mixin(import("filter_coeff.d"));
     }

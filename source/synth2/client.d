@@ -150,7 +150,7 @@ class Synth2Client : Client {
 
     _filter.setParams(
         readParam!FilterKind(Params.filterKind),
-        readParam!float(Params.filterCutoff) - ParamBuilder.logBias,
+        readParam!float(Params.filterCutoff),
         readParam!float(Params.filterQ),
     );
     
