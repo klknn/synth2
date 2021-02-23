@@ -160,7 +160,7 @@ struct ParamBuilder {
 
   static filterKind() {
     return mallocNew!EnumParameter(
-        Params.filterKind, "Filter/kind", filterNames, FilterKind.lowpass);
+        Params.filterKind, "Filter/kind", filterNames, FilterKind.LP12);
   }
 
   static filterCutoff() {

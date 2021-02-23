@@ -19,7 +19,7 @@ import dplug.client.params : Parameter;
 import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn;
 import mir.math.common : exp2, log, sqrt;
 
-import synth2.filter : Filter2Pole, FilterKind;
+import synth2.filter : Filter, FilterKind;
 import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator, Waveform, waveformNames;
 import synth2.params : Params, ParamBuilder, paramNames;
@@ -71,7 +71,7 @@ class Synth2Client : Client {
     }
     this._osc2.setSampleRate(sampleRate);
     this._oscSub.setSampleRate(sampleRate);
-    this._filter2p.setSampleRate(sampleRate);
+    this._filter.setSampleRate(sampleRate);
   }
 
   override void processAudio(const(float*)[] inputs, float*[] outputs,
@@ -148,7 +148,7 @@ class Synth2Client : Client {
     if (useOsc2) _osc2.updateFreq();
     if (oscSubVol != 0) _oscSub.updateFreq();
 
-    _filter2p.setParams(
+    _filter.setParams(
         readParam!FilterKind(Params.filterKind),
         readParam!float(Params.filterCutoff) - ParamBuilder.logBias,
         readParam!float(Params.filterQ),
@@ -184,7 +184,7 @@ class Synth2Client : Client {
         output += oscSubVol * _oscSub.front;
         _oscSub.popFront();
       }
-      outputs[0][frame] = ampGain * _filter2p.apply(output);
+      outputs[0][frame] = ampGain * _filter.apply(output);
     }
     foreach (chan; 1 .. outputs.length) {
       outputs[chan][0 .. frames] = outputs[0][0 .. frames];
@@ -192,7 +192,7 @@ class Synth2Client : Client {
   }
 
  private:
-  Filter2Pole _filter2p;
+  Filter _filter;
   Oscillator _osc2, _oscSub;
   Oscillator[8] _osc1s;  // +7 for detune
   Synth2GUI _gui;
