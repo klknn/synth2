@@ -45,7 +45,7 @@ jobs:
       with:
         repository: AuburnSounds/Dplug
         path: Dplug
-    
+
     # Cache
     - name: Cache
       id: dplug-cache
@@ -129,6 +129,7 @@ jobs:
     # You may need to repeat this for each plugin that you build
     # Pattern matching is not supported here
     - name: Upload synth2
+      if: matrix.compiler == 'ldc-latest'
       uses: actions/upload-artifact@v2
       with:
         name: synth2-${{ matrix.os }}

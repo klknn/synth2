@@ -1,5 +1,7 @@
 module synth2.envelope;
 
+import std.math : isNaN;
+
 enum Stage {
   attack,
   decay,
@@ -48,7 +50,6 @@ struct ADSR {
       case Stage.sustain:
         return this.sustainLevel;
       case Stage.release:
-        import std.math : isNaN;
         assert(!isNaN(this._releaseLevel), "invalid release level.");
         return this.releaseTime == 0 ? 0f
             : (-this._stageTime * this._releaseLevel / this.releaseTime

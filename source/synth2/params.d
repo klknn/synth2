@@ -89,7 +89,7 @@ struct ParamBuilder {
   // TODO: check synth1 default (440hz?)
   static osc2Pitch() {
     return mallocNew!IntegerParameter(
-        Params.osc2Pitch, "Osc2/Pitch", "", -69, 68, 0);
+        Params.osc2Pitch, "Osc2/Pitch", "", -12, 12, 0);
   }
 
   static osc2Fine() {
@@ -112,7 +112,7 @@ struct ParamBuilder {
 
   static oscKeyShift() {
     return mallocNew!IntegerParameter(
-        Params.oscKeyShift, "Osc/KeyShift", "semitone", -60, 60, 0);
+        Params.oscKeyShift, "Osc/KeyShift", "semitone", -12, 12, 0);
   }
 
   static oscTune() {
@@ -176,7 +176,7 @@ struct ParamBuilder {
 
   static ampVel() {
     return mallocNew!LinearFloatParameter(
-        Params.ampVel, "Amp/Vel", "", 0, 1.0, 0);
+        Params.ampVel, "Amp/Vel", "", 0, 1.0, 1.0);
   }
 
   static filterKind() {
@@ -203,4 +203,21 @@ struct ParamBuilder {
     }
     return params.releaseData();
   }
+}
+
+/// Gets statically-known typed param from base class array.
+auto typedParam(Params pid)(Parameter[] params) {
+  alias T = typeof(__traits(getMember, ParamBuilder, paramNames[pid])());
+  auto ret = cast(T) params[pid];
+  assert(ret !is null);
+  return ret;
+}
+
+///
+@nogc nothrow
+unittest {
+  Parameter[1] ps;
+  ps[0] = ParamBuilder.osc1Waveform();
+  auto actual = typedParam!(Params.osc1Waveform)(ps[]);
+  static assert(is(typeof(actual) == EnumParameter));
 }

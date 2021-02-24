@@ -7,6 +7,8 @@ Simple virtual-analog synth aims to be Synth1 written in D.
 
 WARNING: this plugin is very unstable.
 
+![gui](resource/screen.png)
+
 ## How to build this plugin?
 
 https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
@@ -31,11 +33,7 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
 - [ ] Filter
   - [x] HP6/HP12/LP6/LP12/LP24/LPDL(TB303 like filter)
   - [ ] ADSR
-- [ ] GUI
-  - [ ] buttons
-  - [ ] knobs
-  - [ ] labels (background png?)
-  - [ ] color config
+- [x] GUI
 - [ ] LFO
 - [ ] Arpeggiator
 - [ ] Effect

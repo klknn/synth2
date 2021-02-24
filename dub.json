@@ -4,6 +4,16 @@
         "unittest-opt":
         {
             "buildOptions": ["unittests", "optimize", "inline"]
+        },
+        "unittest-native":
+        {
+            "buildOptions": ["unittests", "optimize", "inline"],
+            "dflags-ldc": ["-mcpu=native"]
+        },
+        "release-native":
+        {
+            "buildOptions": ["releaseMode", "optimize", "inline", "noBoundsCheck"],
+            "dflags-ldc": ["-mcpu=native"]
         }
     },
     "configurations": [

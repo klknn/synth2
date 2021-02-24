@@ -19,6 +19,7 @@ import dplug.client.params : Parameter;
 import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn, makeMidiMessageNoteOff;
 import mir.math : exp2, log, sqrt, PI;
 
+import synth2.envelope : ADSR;
 import synth2.filter : Filter, FilterKind, filterNames;
 version (unittest) {} else import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator, Waveform, waveformNames;
@@ -39,7 +40,7 @@ class Synth2Client : Client {
   version (unittest) {} else
   override IGraphics createGraphics() {
     _gui = mallocNew!Synth2GUI(
-        this.param(Params.osc1Waveform),
+        this.params,
     );
     return _gui;
   }
@@ -209,6 +210,7 @@ class Synth2Client : Client {
 
  private:
   Filter _filter;
+  ADSR _filterEnvelope, _modEnvelope;
   Oscillator _osc2, _oscSub;
   Oscillator[8] _osc1s;  // +7 for detune
   version (unittest) {} else Synth2GUI _gui;
@@ -477,7 +479,7 @@ unittest {
 unittest {
   TestHost host = { mallocNew!Synth2Client() };
   scope (exit) destroyFree(host.client);
-  assert(host.paramChangeOutputs!(Params.ampVel)(1.0));
+  assert(host.paramChangeOutputs!(Params.ampVel)(0.0));
 }
 
 /// Test filter
