@@ -14,7 +14,9 @@ enum FilterKind {
   BP12,
   LP6,
   LP12,
+  /// Moog ladder filter
   LP24,
+  /// TB303 diode-ladder filter
   LPDL,
 }
 
@@ -51,6 +53,7 @@ struct Filter {
     y[] = 0f;
   }
 
+  /// q = resonance, quality factor [0, 100].
   void setParams(FilterKind kind, float freqPercent, float q) {
     if (this.kind != kind) {
       x[] = 0f;
@@ -58,15 +61,17 @@ struct Filter {
     }
     this.kind = kind;
 
-    // To prevent filter oscillation.
+    // To prevent the filter gets unstable.
     float Q;
     if (kind == FilterKind.LPDL) {
+      // unstable at Q = 16 (see VAFD sec 5.10)
       Q = q * 0.16 + 1 / SQRT2;
-      freqPercent += 0.5;
+      freqPercent += 0.5;  // to prevent self osc.
     }
     else if (kind == FilterKind.LP24) {
-      Q = q * 0.86 * 0.05 + 1 / SQRT2;
-      freqPercent += 0.5;
+      // unstable at Q = 4 (see VAFD sec 5.1, eq 5.2)
+      Q = q * 0.04;
+      freqPercent += 0.5;  // to prevent self osc.
     }
     else {
       Q = q * 0.05 + 1 / SQRT2;

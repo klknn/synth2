@@ -314,17 +314,21 @@ public:
     UIKnob knob = mallocNew!UIKnob(this.context, p);
     this.addChild(knob);
     knob.position(pos);
-    knob.style = KnobStyle.cylinder;
     // knob.knobDiffuse = RGBA(255, 255, 255, 255);
-    knob.knobDiffuse = defaultDiffuse;
+    knob.knobDiffuse = RGBA(70, 70, 70, 0);
+    knob.style = KnobStyle.ball;
+    knob.knobMaterial = RGBA(0, 0, 0, 0);  // smooth, metal, shiny, phisycal
+    // knob.knobDiffuse = RGBA(255, 255, 255, 255);
+
+    knob.LEDDepth = 0;
     knob.numLEDs = 0;
     knob.knobRadius = 0.5;
     knob.trailRadiusMin = 0.4;
     knob.trailRadiusMax = 1;
-    knob.LEDDiffuseLit = RGBA(0, 0, 40, 100);
-    knob.LEDDiffuseUnlit = RGBA(0, 0, 40, 0);
-    knob.LEDRadiusMin = 0.2f;
-    knob.LEDRadiusMax = 0.2f;
+    knob.LEDDiffuseLit = RGBA(0, 0, 0, 0);
+    knob.LEDDiffuseUnlit = RGBA(0, 0, 0, 0);
+    knob.LEDRadiusMin = 0f;
+    knob.LEDRadiusMax = 0f;
 
     knob.litTrailDiffuse = litTrailDiffuse;
     knob.unlitTrailDiffuse = unlitTrailDiffuse;
@@ -360,10 +364,10 @@ public:
     ui.handleWidthRatio = 0.5;
     ui.handleHeightRatio = 0.12;
     ui.handleStyle = HandleStyle.shapeBlock;
+    ui.handleMaterial = RGBA(0, 0, 0, 0);  // smooth, metal, shiny, phisycal
     ui.handleDiffuse = RGBA(255, 255, 255, 0);
     ui.litTrailDiffuse = litTrailDiffuse;
     ui.unlitTrailDiffuse = unlitTrailDiffuse;
-    ui.handleMaterial = RGBA(0, 0, 0, 0);  // smooth, metal, shiny, phisycal
     this.addChild(ui);
 
     if (vlabels.length > 0) {

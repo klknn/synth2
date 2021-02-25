@@ -59,7 +59,10 @@ print_coeff(hs = (s / w0 / Q) / (s**2 / w0**2 + s / w0 / Q + 1))
 print()
 
 print("case FilterKind.LP24:")
-print_coeff(hs = 1 / (s**2 / w0**2 + s / w0 / Q + 1)**2)
+print("  // Defined in VAFD Sec 5.1, Eq 5.1.")
+print("  // https://www.discodsp.net/VAFilterDesign_2.1.0.pdf")
+# print_coeff(hs = 1 / (s**2 / w0**2 + s / w0 / Q + 1)**2)
+print_coeff(hs = 1 / expand((Q + (1 + s / w0) ** 4)))
 print()
 
 print("case FilterKind.LPDL:")
