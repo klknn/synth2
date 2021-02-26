@@ -20,7 +20,8 @@ import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn, makeMidiMessageNo
 import mir.math : exp2, log, sqrt, PI;
 
 import synth2.envelope : ADSR;
-import synth2.filter : Filter, FilterKind, filterNames;
+import synth2.filter : FilterKind, filterNames;
+import synth2.modfilter : ModFilter;
 version (unittest) {} else import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator, Waveform, waveformNames;
 import synth2.params : Params, ParamBuilder, paramNames;
@@ -145,6 +146,19 @@ class Synth2Client : Client {
       }
     }
 
+    _filter.useVelocity = readParam!bool(Params.filterUseVelocity);
+    _filter.trackAmount = readParam!float(Params.filterTrack);
+    _filter.envAmount = readParam!float(Params.filterEnvAmount);
+    if (_filter.envAmount != 0) {
+      _filter.envelope.attackTime =
+          readParam!float(Params.filterAttack) - ParamBuilder.logBias;
+      _filter.envelope.decayTime =
+          readParam!float(Params.filterDecay) - ParamBuilder.logBias;
+      _filter.envelope.sustainLevel = exp2(readParam!float(Params.filterSustain));
+      _filter.envelope.releaseTime =
+          readParam!float(Params.filterRelease) - ParamBuilder.logBias;
+    }
+
     // Setup freq by MIDI and params.
     foreach (msg; this.getNextMidiMessages(frames)) {
       if (useOsc1) {
@@ -155,6 +169,7 @@ class Synth2Client : Client {
       }
       if (useOsc2) _osc2.setMidi(msg);
       if (oscSubVol != 0) _oscSub.setMidi(msg);
+      _filter.setMidi(msg);
     }
     if (useOsc1) {
       foreach (ref o; _osc1s) {
@@ -202,6 +217,7 @@ class Synth2Client : Client {
         _oscSub.popFront();
       }
       outputs[0][frame] = ampGain * _filter.apply(output);
+      _filter.popFront();
     }
     foreach (chan; 1 .. outputs.length) {
       outputs[chan][0 .. frames] = outputs[0][0 .. frames];
@@ -209,7 +225,7 @@ class Synth2Client : Client {
   }
 
  private:
-  Filter _filter;
+  ModFilter _filter;
   ADSR _filterEnvelope, _modEnvelope;
   Oscillator _osc2, _oscSub;
   Oscillator[8] _osc1s;  // +7 for detune
@@ -223,7 +239,7 @@ struct TestHost {
   int frames = 8;
   Vec!float[2] outputFrames;
   MidiMessage msg1 = makeMidiMessageNoteOn(0, 0, 100, 100);
-  MidiMessage msg2 = makeMidiMessageNoteOn(1, 0, 90, 90);
+  MidiMessage msg2 = makeMidiMessageNoteOn(1, 0, 90, 10);
   MidiMessage msg3 = makeMidiMessageNoteOff(2, 0, 100);
 
   @nogc nothrow:
@@ -489,9 +505,20 @@ unittest {
   scope (exit) destroyFree(host.client);
   foreach (fkind; EnumMembers!FilterKind) {
     host.setParam!(Params.filterKind)(fkind);
-    assert(host.paramChangeOutputs!(Params.filterCutoff)(50));
+    assert(host.paramChangeOutputs!(Params.filterCutoff)(0.5));
     if (fkind != FilterKind.HP6 && fkind != FilterKind.LP6) {
-      assert(host.paramChangeOutputs!(Params.filterQ)(50));
+      assert(host.paramChangeOutputs!(Params.filterQ)(0.5));
     }
   }
+
+  host.setParam!(Params.filterCutoff)(0);
+  assert(host.paramChangeOutputs!(Params.filterTrack)(1.0));
+  host.setParam!(Params.filterEnvAmount)(1.0);
+  assert(host.paramChangeOutputs!(Params.filterUseVelocity)(true));
+  assert(host.paramChangeOutputs!(Params.filterAttack)(1.0));
+
+  // host.frames = 1000;
+  // assert(host.paramChangeOutputs!(Params.filterDecay)(10.0));
+  // assert(host.paramChangeOutputs!(Params.filterSustain)(-10));
+  // assert(host.paramChangeOutputs!(Params.filterRelease)(1.0));
 }

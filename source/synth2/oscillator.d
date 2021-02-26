@@ -9,15 +9,20 @@ module synth2.oscillator;
 
 import std.math : isNaN;
 
-import dplug.core.math : TAU, convertDecibelToLinearGain, convertMIDINoteToFrequency;
+import dplug.core.math : TAU, convertDecibelToLinearGain; // convertMIDINoteToFrequency;
 import dplug.client.midi : MidiMessage, MidiStatus;
 import mir.random : rand;
 import mir.random.engine.xoshiro : Xoshiro128StarStar_32;
-import mir.math : sin, PI, fmin, log2, exp2;
+import mir.math : sin, PI, fmin, log2, exp2, log10;
 
 import synth2.envelope : ADSR;
 
 @safe nothrow @nogc:
+
+float convertMIDINoteToFrequency(float note)
+{
+    return 440.0f * exp2((note - 69.0f) / 12.0f);
+}
 
 
 /// Waveform kind.
@@ -182,20 +187,14 @@ struct Oscillator
   }
 
   void setMidi(MidiMessage msg) @system {
-    switch (cast(MidiStatus) msg.statusType()) {
-      case MidiStatus.noteOn:
-        markNoteOn(msg);
-        break;
-      case MidiStatus.noteOff:
-        markNoteOff(msg.noteNumber());
-        break;
-      case MidiStatus.pitchBend:
-        _pitchBend = msg.pitchBend();
-        assert(false);
-        // break;
-      default:
-        // TODO
-        break;
+    if (msg.isNoteOn) {
+      markNoteOn(msg);
+    }
+    if (msg.isNoteOff) {
+      markNoteOff(msg.noteNumber());
+    }
+    if (msg.isPitchBend) {
+      _pitchBend = msg.pitchBend();
     }
   }
 

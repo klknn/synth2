@@ -54,6 +54,13 @@ enum Params : int {
   filterKind,
   filterCutoff,
   filterQ,
+  filterTrack,
+  filterAttack,
+  filterDecay,
+  filterSustain,
+  filterRelease,
+  filterEnvAmount,
+  filterUseVelocity,
 }
 
 static immutable paramNames = [__traits(allMembers, Params)];
@@ -167,7 +174,7 @@ struct ParamBuilder {
 
   static ampRelease() {
     return mallocNew!LogFloatParameter(
-        Params.ampRelease, "Amp/Rel", "%", logBias, 100, logBias);
+        Params.ampRelease, "Amp/Rel", "sec", logBias, 100, logBias);
   }
 
   static ampGain() {
@@ -186,12 +193,47 @@ struct ParamBuilder {
 
   static filterCutoff() {
     return mallocNew!LogFloatParameter(
-        Params.filterCutoff, "Filter/cutoff", "%", logBias, 100, 100);
+        Params.filterCutoff, "Filter/cutoff", "", logBias, 1, 1);
   }
 
   static filterQ() {
     return mallocNew!LinearFloatParameter(
-        Params.filterQ, "Filter/Q", "%", 0, 100, 0);
+        Params.filterQ, "Filter/Q", "", 0, 1, 0);
+  }
+
+  static filterTrack() {
+    return mallocNew!LinearFloatParameter(
+        Params.filterTrack, "Filter/track", "", 0, 1, 0);
+  }
+
+  static filterEnvAmount() {
+    return mallocNew!LinearFloatParameter(
+        Params.filterEnvAmount, "Filter/amount", "", 0, 1, 0);
+  }
+
+  static filterAttack() {
+    return mallocNew!LogFloatParameter(
+        Params.filterAttack, "Filter/Att", "sec", logBias, 100.0, logBias);
+  }
+
+  static filterDecay() {
+    return mallocNew!LogFloatParameter(
+        Params.filterDecay, "Filter/Dec", "sec", logBias, 100.0, logBias);
+  }
+
+  static filterSustain() {
+    return mallocNew!GainParameter(
+        Params.filterSustain, "Filter/Sus", 0.0, 0.0);
+  }
+
+  static filterRelease() {
+    return mallocNew!LogFloatParameter(
+        Params.filterRelease, "Filter/Rel", "sec", logBias, 100, logBias);
+  }
+
+  static filterUseVelocity() {
+    return mallocNew!BoolParameter(
+        Params.filterUseVelocity, "Filter/velocity", false);
   }
 
   @nogc nothrow:

@@ -38,14 +38,14 @@ public:
 
   enum marginW = 5;
   enum marginH = 5;
-  enum screenWidth = 460;
+  enum screenWidth = 420;
   enum screenHeight = 300;
 
   enum fontLarge = 16;
   enum fontMedium = 10;
   enum fontSmall = 8;
 
-  enum knobRad = 30;
+  enum knobRad = 25;
   enum slideWidth = 50;
   enum slideHeight = 100;
 
@@ -60,12 +60,12 @@ public:
     auto synth2 = addLabel("Synth2");
     synth2.textSize(fontLarge);
     synth2.position(box2i.rectangle(0, y, 80, fontLarge));
-    auto url = addLabel("https://github.com/klknn/synth2");
-    url.targetURL = "https://github.com/klknn/synth2";
-    url.clickable = true;
-    url.textSize(fontSmall);
-    url.position(box2i.rectangle(screenWidth * 2 / 3,
-                                 screenHeight - fontMedium, 150, fontMedium));
+    // auto url = addLabel("https://github.com/klknn/synth2");
+    // url.targetURL = "https://github.com/klknn/synth2";
+    // url.clickable = true;
+    // url.textSize(fontSmall);
+    // url.position(box2i.rectangle(screenWidth * 2 / 3,
+    //                              screenHeight - fontMedium, 150, fontMedium));
     auto date = addLabel("v0.00 " ~ __DATE__);
     date.position(box2i.rectangle(screenWidth - 100, y, 100, fontMedium));
     date.textSize(fontMedium);
@@ -104,7 +104,7 @@ public:
           cast(FloatParameter) parameters[Params.osc1FM],
           box2i.rectangle(
               osc1det.position.min.x,
-              osc1det.position.max.y + fontSmall + marginH / 2,
+              osc1det.position.max.y + fontMedium + marginH,
               knobRad, knobRad),
           "fm");
 
@@ -235,53 +235,54 @@ public:
     );
 
     // Amplifier
-    auto ampLab = this.addLabel("Amplifier");
-    ampLab.textSize(fontMedium);
-    ampLab.position(box2i.rectangle(
-        oscMasterPW.position.max.x + marginW,
-        osc1lab.position.min.y,
-        50, fontMedium));
-    auto ampA = this.addKnob(
-        typedParam!(Params.ampAttack)(parameters),
-        box2i.rectangle(ampLab.position.min.x + marginW,
-                        oscMasterPW.position.min.y,
-                        knobRad, knobRad),
-        "A",
-    );
-    auto ampD = this.addKnob(
-        typedParam!(Params.ampDecay)(parameters),
-        box2i.rectangle(ampA.position.max.x + marginW,
-                        oscMasterPW.position.min.y,
-                        knobRad, knobRad),
-        "D",
-    );
-    auto ampS = this.addKnob(
-        typedParam!(Params.ampSustain)(parameters),
-        box2i.rectangle(ampD.position.max.x + marginW,
-                        oscMasterPW.position.min.y,
-                        knobRad, knobRad),
-        "S",
-    );
-    auto ampR = this.addKnob(
-        typedParam!(Params.ampRelease)(parameters),
-        box2i.rectangle(ampS.position.max.x + marginW,
-                        oscMasterPW.position.min.y,
-                        knobRad, knobRad),
-        "R",
-    );
     auto ampGain = this.addKnob(
         typedParam!(Params.ampGain)(parameters),
-        box2i.rectangle(ampA.position.max.x + marginW,
-                        oscMasterTune.position.min.y,
+        box2i.rectangle(oscMasterPhase.position.min.x,
+                        oscMasterPhase.position.max.y + marginH + fontMedium,
                         knobRad, knobRad),
         "gain",
     );
     auto ampVel = this.addKnob(
         typedParam!(Params.ampVel)(parameters),
-        box2i.rectangle(ampD.position.max.x + marginW,
-                        oscMasterTune.position.min.y,
+        box2i.rectangle(oscMasterTune.position.min.x,
+                        oscMasterTune.position.max.y + marginH + fontMedium,
                         knobRad, knobRad),
         "vel",
+    );
+
+    auto ampLab = this.addLabel("Amp env");
+    ampLab.textSize(fontMedium);
+    ampLab.position(box2i.rectangle(
+        oscMasterPW.position.max.x + marginW,
+        osc1lab.position.min.y,
+        50, fontMedium));
+    auto ampA = this.addSlider(
+        typedParam!(Params.ampAttack)(parameters),
+        box2i.rectangle(ampLab.position.min.x + marginW,
+                        oscMasterPW.position.min.y,
+                        slideWidth, slideHeight),
+        "A", []
+    );
+    auto ampD = this.addSlider(
+        typedParam!(Params.ampDecay)(parameters),
+        box2i.rectangle(ampA.position.max.x + marginW,
+                        oscMasterPW.position.min.y,
+                        slideWidth, slideHeight),
+        "D", []
+    );
+    auto ampS = this.addSlider(
+        typedParam!(Params.ampSustain)(parameters),
+        box2i.rectangle(ampD.position.max.x + marginW,
+                        oscMasterPW.position.min.y,
+                        slideWidth, slideHeight),
+        "S", []
+    );
+    auto ampR = this.addSlider(
+        typedParam!(Params.ampRelease)(parameters),
+        box2i.rectangle(ampS.position.max.x + marginW,
+                        oscMasterPW.position.min.y,
+                        slideWidth, slideHeight),
+        "R", []
     );
 
     // Filter
@@ -301,13 +302,67 @@ public:
         box2i.rectangle(oscMasterMix.position.min.x,
                         filterKind.position.min.y,
                         knobRad, knobRad),
-        "cutoff");
+        "frq");
     auto filterQ = this.addKnob(
         typedParam!(Params.filterQ)(parameters),
         box2i.rectangle(oscMasterMix.position.min.x,
                         osc2track.position.min.y,
                         knobRad, knobRad),
-        "Q");
+        "res");
+    auto filterEnvAmount = this.addKnob(
+        typedParam!(Params.filterEnvAmount)(parameters),
+        box2i.rectangle(filterCutoff.position.max.x + marginW,
+                        filterKind.position.min.y,
+                        knobRad, knobRad),
+        "amt");
+    auto filterTrack = this.addKnob(
+        typedParam!(Params.filterTrack)(parameters),
+        box2i.rectangle(filterEnvAmount.position.min.x,
+                        filterQ.position.min.y,
+                        knobRad, knobRad),
+        "track");
+    auto filterVel = this.addSwitch(
+        typedParam!(Params.filterUseVelocity)(parameters),
+        box2i.rectangle(filterTrack.position.min.x,
+                        filterTrack.position.max.y + fontMedium + marginH,
+                        knobRad, knobRad),
+        "vel"
+    );
+
+    auto filterEnvLab = this.addLabel("Filter env");
+    filterEnvLab.textSize(fontMedium);
+    filterEnvLab.position(box2i.rectangle(
+        ampLab.position.min.x,
+        filterLab.position.min.y,
+        60, fontMedium));
+    auto filterA = this.addSlider(
+        typedParam!(Params.filterAttack)(parameters),
+        box2i.rectangle(ampA.position.min.x,
+                        filterCutoff.position.min.y,
+                        slideWidth, slideHeight),
+        "A", []
+    );
+    auto filterD = this.addSlider(
+        typedParam!(Params.filterDecay)(parameters),
+        box2i.rectangle(filterA.position.max.x + marginW,
+                        filterCutoff.position.min.y,
+                        slideWidth, slideHeight),
+        "D", []
+    );
+    auto filterS = this.addSlider(
+        typedParam!(Params.filterSustain)(parameters),
+        box2i.rectangle(filterD.position.max.x + marginW,
+                        filterCutoff.position.min.y,
+                        slideWidth, slideHeight),
+        "S", []
+    );
+    auto filterR = this.addSlider(
+        typedParam!(Params.filterRelease)(parameters),
+        box2i.rectangle(filterS.position.max.x + marginW,
+                        filterCutoff.position.min.y,
+                        slideWidth, slideHeight),
+        "R", []
+    );
   }
 
   UIKnob addKnob(FloatParameter p, box2i pos, string label) {
