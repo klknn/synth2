@@ -36,18 +36,18 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "")
 public:
   nothrow @nogc:
 
-  enum marginW = 5;
-  enum marginH = 5;
-  enum screenWidth = 420;
-  enum screenHeight = 300;
+  enum marginW = 4;
+  enum marginH = 4;
+  enum screenWidth = 340;
+  enum screenHeight = 250;
 
   enum fontLarge = 16;
   enum fontMedium = 10;
   enum fontSmall = 8;
 
-  enum knobRad = 25;
-  enum slideWidth = 50;
-  enum slideHeight = 100;
+  enum knobRad = 20;
+  enum slideWidth = 40;
+  enum slideHeight = 80;
 
   this(Parameter[] parameters)
   {
@@ -309,6 +309,12 @@ public:
                         osc2track.position.min.y,
                         knobRad, knobRad),
         "res");
+    auto saturation = this.addKnob(
+        typedParam!(Params.saturation)(parameters),
+        box2i.rectangle(oscMasterMix.position.min.x,
+                        filterQ.position.max.y + fontMedium + marginH,
+                        knobRad, knobRad),
+        "sat");
     auto filterEnvAmount = this.addKnob(
         typedParam!(Params.filterEnvAmount)(parameters),
         box2i.rectangle(filterCutoff.position.max.x + marginW,

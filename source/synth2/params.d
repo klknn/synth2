@@ -61,6 +61,7 @@ enum Params : int {
   filterRelease,
   filterEnvAmount,
   filterUseVelocity,
+  saturation,
 }
 
 static immutable paramNames = [__traits(allMembers, Params)];
@@ -234,6 +235,11 @@ struct ParamBuilder {
   static filterUseVelocity() {
     return mallocNew!BoolParameter(
         Params.filterUseVelocity, "Filter/velocity", false);
+  }
+
+  static saturation() {
+    return mallocNew!LinearFloatParameter(
+        Params.saturation, "saturation", "", 0, 100, 0);
   }
 
   @nogc nothrow:

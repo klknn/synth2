@@ -9,6 +9,7 @@ module synth2.client;
 
 import std.algorithm.comparison : clamp;
 import std.traits : EnumMembers;
+import std.math : tanh;
 
 import dplug.core.nogc : destroyFree, mallocNew;
 import dplug.core.vec : makeVec, Vec;
@@ -186,6 +187,9 @@ class Synth2Client : Client {
         readParam!float(Params.filterQ),
     );
 
+    const saturation = readParam!float(Params.saturation);
+    const satNorm = tanh(saturation);
+
     // Generate samples.
     foreach (frame; 0 .. frames) {
       // osc1
@@ -216,6 +220,11 @@ class Synth2Client : Client {
         output += oscSubVol * _oscSub.front;
         _oscSub.popFront();
       }
+
+      if (saturation != 0) {
+        output = tanh(saturation * output) / satNorm;
+      }
+
       outputs[0][frame] = ampGain * _filter.apply(output);
       _filter.popFront();
     }
@@ -516,6 +525,7 @@ unittest {
   host.setParam!(Params.filterEnvAmount)(1.0);
   assert(host.paramChangeOutputs!(Params.filterUseVelocity)(true));
   assert(host.paramChangeOutputs!(Params.filterAttack)(1.0));
+  assert(host.paramChangeOutputs!(Params.saturation)(1.0));
 
   // host.frames = 1000;
   // assert(host.paramChangeOutputs!(Params.filterDecay)(10.0));

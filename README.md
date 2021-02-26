@@ -30,9 +30,10 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
 - [x] Amplifier
   - [x] velocity sensitivity
   - [x] ADSR
-- [ ] Filter
+- [x] Filter
   - [x] HP6/HP12/LP6/LP12/LP24/LPDL(TB303 like filter)
-  - [ ] ADSR
+  - [x] ADSR
+  - [x] Saturation
 - [x] GUI
 - [ ] LFO
 - [ ] Arpeggiator
