@@ -171,9 +171,10 @@ class Synth2Client : Client {
     const saturation = readParam!float(Params.saturation);
     const satNorm = tanh(saturation);
 
+    this.updateFreq(frames);
+
     // Generate samples.
     foreach (frame; 0 .. frames) {
-      this.updateFreq(1);
       // osc1
       float o1 = 0;
       if (useOsc1) {

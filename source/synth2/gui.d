@@ -36,18 +36,18 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "")
 public:
   nothrow @nogc:
 
-  enum marginW = 10;
-  enum marginH = 10;
-  enum screenWidth = 600;
-  enum screenHeight = 480;
+  enum marginW = 4;
+  enum marginH = 4;
+  enum screenWidth = 340;
+  enum screenHeight = 250;
 
   enum fontLarge = 16;
   enum fontMedium = 10;
   enum fontSmall = 8;
 
-  enum knobRad = 40;
+  enum knobRad = 20;
   enum slideWidth = 40;
-  enum slideHeight = 100;
+  enum slideHeight = 80;
 
   this(Parameter[] parameters)
   {
