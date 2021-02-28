@@ -1,7 +1,9 @@
 module synth2.envelope;
 
 import std.math : isNaN;
+import mir.math.common : fastmath;
 
+/// Envelope stages.
 enum Stage {
   attack,
   decay,
@@ -18,7 +20,7 @@ struct ADSR {
   float sustainLevel = 1;
   float releaseTime = 0;
 
-  @nogc nothrow @safe pure:
+  @nogc nothrow @safe pure @fastmath:
 
   void attack() {
     this._stage = Stage.attack;

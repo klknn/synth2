@@ -7,7 +7,7 @@
 module synth2.modfilter;
 
 import dplug.client.midi;
-import mir.math.common : fmin;
+import mir.math.common : fmin, fastmath;
 
 import synth2.envelope;
 import synth2.filter;
@@ -22,7 +22,7 @@ struct ModFilter {
   float envAmount = 0;
   float trackAmount = 0;
 
-  @nogc nothrow pure @safe:
+  @nogc nothrow pure @safe @fastmath:
 
   void setParams(FilterKind kind, float freqPercent, float q) {
     this.cutoff = freqPercent;

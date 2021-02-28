@@ -13,13 +13,13 @@ import dplug.core.math : TAU, convertDecibelToLinearGain; // convertMIDINoteToFr
 import dplug.client.midi : MidiMessage, MidiStatus;
 import mir.random : rand;
 import mir.random.engine.xoshiro : Xoshiro128StarStar_32;
-import mir.math : sin, PI, fmin, log2, exp2, log10;
+import mir.math : sin, PI, fmin, log2, exp2, log10, fastmath;
 
 import synth2.envelope : ADSR;
 
 @safe nothrow @nogc:
 
-float convertMIDINoteToFrequency(float note)
+float convertMIDINoteToFrequency(float note) @fastmath
 {
     return 440.0f * exp2((note - 69.0f) / 12.0f);
 }
@@ -46,7 +46,7 @@ struct WaveformRange {
   Waveform waveform = Waveform.sine;
   static rng = Xoshiro128StarStar_32(0u);
 
-  @safe nothrow @nogc:
+  @safe nothrow @nogc @fastmath:
 
   enum empty = false;
 
@@ -98,7 +98,7 @@ struct VoiceStatus {
   WaveformRange wave;
   ADSR envelope;
 
-  @nogc nothrow @safe:
+  @nogc nothrow @safe @fastmath:
 
   bool isPlaying() const { return !this.envelope.empty; }
 
@@ -130,7 +130,7 @@ struct VoiceStatus {
 /// [-20, -0.9, 0] dB if sensitivity = 1.0, bias = 1e-3
 /// [-11, -1.9, -1] if sensitivity = 0.5, bias = 1e-3
 /// [-10, -10, -10] if sensitivity = 0.0, bias = 1e-3
-float velocityToDB(int velocity, float sensitivity = 1.0, float bias = 1e-1) {
+float velocityToDB(int velocity, float sensitivity = 1.0, float bias = 1e-1) @fastmath {
   assert(0 <= velocity && velocity <= 127);
   auto scaled = (velocity / 127f - bias) * sensitivity + bias;
   return log2(scaled + 1e-6);
@@ -155,7 +155,7 @@ float velocityToDB(int velocity, float sensitivity = 1.0, float bias = 1e-1) {
 struct Oscillator
 {
  public:
-  @safe @nogc nothrow:
+  @safe @nogc nothrow @fastmath:
 
   enum voicesCount = 16;
 

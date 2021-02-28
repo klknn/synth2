@@ -18,7 +18,7 @@ import dplug.client.graphics : IGraphics;
 import dplug.client.dllmain : DLLEntryPoint, pluginEntryPoints;
 import dplug.client.params : Parameter;
 import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn, makeMidiMessageNoteOff;
-import mir.math : exp2, log, sqrt, PI;
+import mir.math : exp2, log, sqrt, PI, fastmath;
 
 import synth2.envelope : ADSR;
 import synth2.filter : FilterKind, filterNames;
@@ -36,7 +36,7 @@ mixin(pluginEntryPoints!Synth2Client);
 /// Polyphonic digital-aliasing synth
 class Synth2Client : Client {
  public:
-  nothrow @nogc:
+  nothrow @nogc @fastmath:
 
   // NOTE: this method will not call until GUI required (lazy)
   version (unittest) {} else
@@ -433,6 +433,7 @@ unittest {
 /// Test Osc2 Track and pitch
 @nogc nothrow @system
 unittest {
+  import std.math : approxEqual;
   TestHost host = { mallocNew!Synth2Client() };
   scope (exit) destroyFree(host.client);
 
@@ -440,12 +441,12 @@ unittest {
   host.setParam!(Params.oscMix)(1.0);
   host.setParam!(Params.osc2Track)(false);
   host.processAudio();
-  assert(host.client._osc2.lastUsedWave.freq == 440);
+  assert(approxEqual(host.client._osc2.lastUsedWave.freq, 440));
 
   // Check pitch is 1 octave down.
   host.setParam!(Params.osc2Pitch)(-12);
   host.processAudio();
-  assert(host.client._osc2.lastUsedWave.freq == 220);
+  assert(approxEqual(host.client._osc2.lastUsedWave.freq, 220));
 
   // Check pitch is down from 220hz.
   host.setParam!(Params.osc2Fine)(-1.0);
