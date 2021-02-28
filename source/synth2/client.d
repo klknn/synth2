@@ -102,8 +102,9 @@ class Synth2Client : Client {
     const pw = readParam!float(Params.oscPulseWidth);
     const vel = readParam!float(Params.ampVel);
 
-    const useOsc1 = oscMix != 1 || sync || ring || fm > 0;
+    this.useOsc1 = oscMix != 1 || sync || ring || fm > 0;
     const osc1Det = readParam!float(Params.osc1Det);
+    this.useOsc1Det = osc1Det != 0;
     if (useOsc1) {
       foreach (i, ref _osc1; _osc1s) {
         _osc1.setWaveform(readParam!Waveform(Params.osc1Waveform));
@@ -120,7 +121,7 @@ class Synth2Client : Client {
       }
     }
 
-    const useOsc2 = oscMix != 0 || sync || ring || fm > 0;
+    this.useOsc2 = oscMix != 0 || sync || ring || fm > 0;
     if (useOsc2) {
       _osc2.setWaveform(readParam!Waveform(Params.osc2Waveform));
       _osc2.setPulseWidth(pw);
@@ -136,6 +137,7 @@ class Synth2Client : Client {
     }
 
     const oscSubVol = exp2(readParam!float(Params.oscSubVol));
+    this.useOscSub = oscSubVol != 0;
     if (oscSubVol != 0) {
       _oscSub.setWaveform(readParam!Waveform(Params.oscSubWaveform));
       _oscSub.setNoteDiff(
@@ -160,27 +162,6 @@ class Synth2Client : Client {
           readParam!float(Params.filterRelease) - ParamBuilder.logBias;
     }
 
-    // Setup freq by MIDI and params.
-    foreach (msg; this.getNextMidiMessages(frames)) {
-      if (useOsc1) {
-        foreach (ref o1; _osc1s) {
-          o1.setMidi(msg);
-          if (osc1Det == 0) break;
-        }
-      }
-      if (useOsc2) _osc2.setMidi(msg);
-      if (oscSubVol != 0) _oscSub.setMidi(msg);
-      _filter.setMidi(msg);
-    }
-    if (useOsc1) {
-      foreach (ref o; _osc1s) {
-        o.updateFreq();
-        if (osc1Det == 0) break;
-      }
-    }
-    if (useOsc2) _osc2.updateFreq();
-    if (oscSubVol != 0) _oscSub.updateFreq();
-
     _filter.setParams(
         readParam!FilterKind(Params.filterKind),
         readParam!float(Params.filterCutoff),
@@ -192,6 +173,7 @@ class Synth2Client : Client {
 
     // Generate samples.
     foreach (frame; 0 .. frames) {
+      this.updateFreq(1);
       // osc1
       float o1 = 0;
       if (useOsc1) {
@@ -234,6 +216,30 @@ class Synth2Client : Client {
   }
 
  private:
+  void updateFreq(int frames) {
+    // Setup freq by MIDI and params.
+    foreach (msg; this.getNextMidiMessages(frames)) {
+      if (useOsc1) {
+        foreach (ref o1; _osc1s) {
+          o1.setMidi(msg);
+          if (!useOsc1Det) break;
+        }
+      }
+      if (useOsc2) _osc2.setMidi(msg);
+      if (useOscSub) _oscSub.setMidi(msg);
+      _filter.setMidi(msg);
+    }
+    if (useOsc1) {
+      foreach (ref o; _osc1s) {
+        o.updateFreq();
+        if (!useOsc1Det) break;
+      }
+    }
+    if (useOsc2) _osc2.updateFreq();
+    if (useOscSub) _oscSub.updateFreq();
+  }
+
+  bool useOsc1, useOsc2, useOscSub, useOsc1Det;
   ModFilter _filter;
   ADSR _filterEnvelope, _modEnvelope;
   Oscillator _osc2, _oscSub;

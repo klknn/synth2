@@ -36,18 +36,18 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "")
 public:
   nothrow @nogc:
 
-  enum marginW = 4;
-  enum marginH = 4;
-  enum screenWidth = 340;
-  enum screenHeight = 250;
+  enum marginW = 10;
+  enum marginH = 10;
+  enum screenWidth = 600;
+  enum screenHeight = 480;
 
   enum fontLarge = 16;
   enum fontMedium = 10;
   enum fontSmall = 8;
 
-  enum knobRad = 20;
+  enum knobRad = 40;
   enum slideWidth = 40;
-  enum slideHeight = 80;
+  enum slideHeight = 100;
 
   this(Parameter[] parameters)
   {
@@ -165,7 +165,7 @@ public:
     auto osc2sync = this.addSwitch(
         typedParam!(Params.osc2Sync)(parameters),
         box2i.rectangle(osc2ring.position.min.x,
-                        osc2ring.position.max.y + marginH * 3,
+                        osc2ring.position.max.y + fontMedium + marginH,
                         knobRad, knobRad),
         "sync"
     );

@@ -10,7 +10,7 @@
 */
 module synth2.filter;
 
-import mir.math : approxEqual, PI, SQRT2, fmax, fastmath;
+import mir.math : approxEqual, PI, SQRT2, fmax;
 
 @nogc nothrow @safe pure:
 
@@ -29,7 +29,7 @@ enum FilterKind {
 static immutable filterNames = [__traits(allMembers, FilterKind)];
 
 struct Filter {
-  @nogc nothrow @safe pure @fastmath:
+  @nogc nothrow @safe pure:
 
   float apply(float input) {
     // TODO: use ring buffer
@@ -87,7 +87,7 @@ struct Filter {
       Q = q + 1 / SQRT2;
     }
     const T = 1 / sampleRate;
-    const w0 = 2 * PI * freq * 1.5 * sampleRate;
+    const w0 = 2 * PI * freq * sampleRate;
     final switch (kind) {
       mixin(import("filter_coeff.d"));
     }
