@@ -33,7 +33,7 @@ struct ModFilter {
 
   void setSampleRate(float sampleRate) {
     this.filter.setSampleRate(sampleRate);
-    nplay = 0;
+    this.envelope.setSampleRate(sampleRate);
   }
 
   void popFront() {
@@ -45,21 +45,15 @@ struct ModFilter {
 
   @system void setMidi(MidiMessage msg) {
     if (msg.isNoteOn) {
-      ++nplay;
-      if (nplay == 1) this.envelope.attack();
       this.velocity = this.envAmount *
                       (this.useVelocity ? msg.noteVelocity / 127 : 1);
       this.track = this.trackAmount * msg.noteNumber / 127;
     }
-    if (msg.isNoteOff) {
-      --nplay;
-      if (nplay == 0) this.envelope.release();
-    }
+    this.envelope.setMidi(msg);
   }
 
  private:
   // filter states
-  int nplay = 0;
   float cutoff = 0;
   float q = 0;
   FilterKind kind;

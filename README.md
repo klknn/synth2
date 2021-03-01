@@ -18,7 +18,7 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
 - [x] Multi-platform
   - [x] VST/VST3/AU CI build
   - [x] Windows/Linux CI test (macOS won't be tested because I don't have it)
-- [ ] Oscillators
+- [x] Oscillators
   - [x] sin/saw/square/triangle/noise waves
   - [x] 2nd/sub osc
   - [x] detune
@@ -26,7 +26,7 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
   - [x] FM
   - [x] AM (ring)
   - [x] master control (keyshift/tune/phase/mix/PW)
-  - [ ] mod envelope
+  - [x] mod envelope
 - [x] Amplifier
   - [x] velocity sensitivity
   - [x] ADSR
@@ -44,7 +44,7 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
 - [ ] Voice
 - [ ] Presets
 - [ ] MIDI
-  - [ ] Pitch bend
+  - [x] Pitch bend
   - [ ] Mod wheel
   - [ ] Control change
   - [ ] Program change

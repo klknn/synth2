@@ -62,9 +62,23 @@ enum Params : int {
   filterEnvAmount,
   filterUseVelocity,
   saturation,
+
+  /// Mod envelope
+  menvDest,
+  menvAttack,
+  menvDecay,
+  menvAmount,
 }
 
 static immutable paramNames = [__traits(allMembers, Params)];
+
+enum MEnvDest {
+  osc2,
+  fm,
+  pw,
+}
+
+static immutable menvDestNames = [__traits(allMembers, MEnvDest)];
 
 
 /// Setup default parameter.
@@ -77,7 +91,7 @@ struct ParamBuilder {
 
   static osc1Det() {
     return mallocNew!LinearFloatParameter(
-        Params.osc1Det, "Osc1/Det", "", 0, 1, 0);
+        Params.osc1Det, "Osc1/Detune", "", 0, 1, 0);
   }
 
   static osc1FM() {
@@ -148,7 +162,7 @@ struct ParamBuilder {
   // TODO: check synth1 max vol.
   static oscSubVol() {
     return mallocNew!GainParameter(
-        Params.oscSubVol, "OscSub/Vol", 0.0f, -float.infinity);
+        Params.oscSubVol, "OscSub/Gain", 0.0f, -float.infinity);
   }
 
   static oscSubOct() {
@@ -160,22 +174,22 @@ struct ParamBuilder {
 
   static ampAttack() {
     return mallocNew!LogFloatParameter(
-        Params.ampAttack, "Amp/Att", "sec", logBias, 100.0, logBias);
+        Params.ampAttack, "Amp/Attack", "sec", logBias, 100.0, logBias);
   }
 
   static ampDecay() {
     return mallocNew!LogFloatParameter(
-        Params.ampDecay, "Amp/Dec", "sec", logBias, 100.0, logBias);
+        Params.ampDecay, "Amp/Decay", "sec", logBias, 100.0, logBias);
   }
 
   static ampSustain() {
     return mallocNew!GainParameter(
-        Params.ampSustain, "Amp/Sus", 0.0, 0.0);
+        Params.ampSustain, "Amp/Sustain", 0.0, 0.0);
   }
 
   static ampRelease() {
     return mallocNew!LogFloatParameter(
-        Params.ampRelease, "Amp/Rel", "sec", logBias, 100, logBias);
+        Params.ampRelease, "Amp/Release", "sec", logBias, 100, logBias);
   }
 
   static ampGain() {
@@ -184,17 +198,17 @@ struct ParamBuilder {
 
   static ampVel() {
     return mallocNew!LinearFloatParameter(
-        Params.ampVel, "Amp/Vel", "", 0, 1.0, 1.0);
+        Params.ampVel, "Amp/Velocity", "", 0, 1.0, 1.0);
   }
 
   static filterKind() {
     return mallocNew!EnumParameter(
-        Params.filterKind, "Filter/kind", filterNames, FilterKind.LP12);
+        Params.filterKind, "Filter/Kind", filterNames, FilterKind.LP12);
   }
 
   static filterCutoff() {
     return mallocNew!LogFloatParameter(
-        Params.filterCutoff, "Filter/cutoff", "", logBias, 1, 1);
+        Params.filterCutoff, "Filter/Cutoff", "", logBias, 1, 1);
   }
 
   static filterQ() {
@@ -204,42 +218,62 @@ struct ParamBuilder {
 
   static filterTrack() {
     return mallocNew!LinearFloatParameter(
-        Params.filterTrack, "Filter/track", "", 0, 1, 0);
+        Params.filterTrack, "Filter/Track", "", 0, 1, 0);
   }
 
   static filterEnvAmount() {
     return mallocNew!LinearFloatParameter(
-        Params.filterEnvAmount, "Filter/amount", "", 0, 1, 0);
+        Params.filterEnvAmount, "Filter/Amount", "", 0, 1, 0);
   }
 
   static filterAttack() {
     return mallocNew!LogFloatParameter(
-        Params.filterAttack, "Filter/Att", "sec", logBias, 100.0, logBias);
+        Params.filterAttack, "Filter/Attack", "sec", logBias, 100.0, logBias);
   }
 
   static filterDecay() {
     return mallocNew!LogFloatParameter(
-        Params.filterDecay, "Filter/Dec", "sec", logBias, 100.0, logBias);
+        Params.filterDecay, "Filter/Decay", "sec", logBias, 100.0, logBias);
   }
 
   static filterSustain() {
     return mallocNew!GainParameter(
-        Params.filterSustain, "Filter/Sus", 0.0, 0.0);
+        Params.filterSustain, "Filter/Sustain", 0.0, 0.0);
   }
 
   static filterRelease() {
     return mallocNew!LogFloatParameter(
-        Params.filterRelease, "Filter/Rel", "sec", logBias, 100, logBias);
+        Params.filterRelease, "Filter/Release", "sec", logBias, 100, logBias);
   }
 
   static filterUseVelocity() {
     return mallocNew!BoolParameter(
-        Params.filterUseVelocity, "Filter/velocity", false);
+        Params.filterUseVelocity, "Filter/Velocity", false);
   }
 
   static saturation() {
     return mallocNew!LinearFloatParameter(
-        Params.saturation, "saturation", "", 0, 100, 0);
+        Params.saturation, "Saturation", "", 0, 100, 0);
+  }
+
+  static menvDest() {
+    return mallocNew!EnumParameter(
+        Params.menvDest, "MEnv/Destination", menvDestNames, MEnvDest.osc2);
+  }
+
+  static menvAttack() {
+    return mallocNew!LogFloatParameter(
+        Params.menvAttack, "MEnv/Attack", "sec", logBias, 100.0, logBias);
+  }
+
+  static menvDecay() {
+    return mallocNew!LogFloatParameter(
+        Params.menvDecay, "MEnv/Decay", "sec", logBias, 100.0, logBias);
+  }
+
+  static menvAmount() {
+    return mallocNew!LinearFloatParameter(
+        Params.menvAmount, "MEnv/Amount", "", -100, 100, 0);
   }
 
   @nogc nothrow:

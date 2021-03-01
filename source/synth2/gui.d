@@ -15,7 +15,7 @@ import dplug.pbrwidgets; // : PBRBackgroundGUI, UILabel, UIOnOffSwitch, UIKnob;
 import gfm.math : box2i;
 
 import synth2.filter : filterNames;
-import synth2.params : typedParam, Params;
+import synth2.params : typedParam, Params, menvDestNames;
 
 enum png1 = "gray600.png"; // "black.png"
 enum png2 = "black600.png";
@@ -36,10 +36,10 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "")
 public:
   nothrow @nogc:
 
-  enum marginW = 4;
-  enum marginH = 4;
-  enum screenWidth = 340;
-  enum screenHeight = 250;
+  enum marginW = 5;
+  enum marginH = 5;
+  enum screenWidth = 420;
+  enum screenHeight = 260;
 
   enum fontLarge = 16;
   enum fontMedium = 10;
@@ -250,7 +250,7 @@ public:
         "vel",
     );
 
-    auto ampLab = this.addLabel("Amp env");
+    auto ampLab = this.addLabel("AmpEnv");
     ampLab.textSize(fontMedium);
     ampLab.position(box2i.rectangle(
         oscMasterPW.position.max.x + marginW,
@@ -335,7 +335,7 @@ public:
         "vel"
     );
 
-    auto filterEnvLab = this.addLabel("Filter env");
+    auto filterEnvLab = this.addLabel("FilterEnv");
     filterEnvLab.textSize(fontMedium);
     filterEnvLab.position(box2i.rectangle(
         ampLab.position.min.x,
@@ -369,6 +369,42 @@ public:
                         slideWidth, slideHeight),
         "R", []
     );
+
+    // mod env
+    auto menvLabel = this.addLabel("ModEnv");
+    menvLabel.textSize(fontMedium);
+    menvLabel.position(box2i.rectangle(
+        ampR.position.max.x + marginW,
+        osc1lab.position.min.y,
+        45, fontMedium));
+    auto menvDest = this.addSlider(
+        parameters[Params.menvDest],
+        box2i.rectangle(
+            menvLabel.position.min.x,
+            menvLabel.position.max.y + marginH,
+            slideWidth, slideHeight,
+        ), "dst", menvDestNames);
+    auto menvAmount = this.addKnob(
+        typedParam!(Params.menvAmount)(parameters),
+        box2i.rectangle(
+            menvDest.position.max.x + menvDest.position.width + marginW,
+            menvDest.position.min.y,
+            knobRad, knobRad),
+        "amt");
+    auto menvAttack = this.addKnob(
+        typedParam!(Params.menvAttack)(parameters),
+        box2i.rectangle(
+            menvAmount.position.min.x,
+            menvAmount.position.max.y + fontSmall + marginH,
+            knobRad, knobRad),
+        "A");
+    auto menvDecay = this.addKnob(
+        typedParam!(Params.menvDecay)(parameters),
+        box2i.rectangle(
+            menvAmount.position.min.x,
+            menvAttack.position.max.y + fontSmall + marginH,
+            knobRad, knobRad),
+        "D");
   }
 
   UIKnob addKnob(FloatParameter p, box2i pos, string label) {
@@ -423,7 +459,7 @@ public:
     ui.position = pos;
     ui.trailWidth = 0.5;
     ui.handleWidthRatio = 0.5;
-    ui.handleHeightRatio = 0.12;
+    ui.handleHeightRatio = 0.15;
     ui.handleStyle = HandleStyle.shapeBlock;
     ui.handleMaterial = RGBA(0, 0, 0, 0);  // smooth, metal, shiny, phisycal
     ui.handleDiffuse = RGBA(255, 255, 255, 0);

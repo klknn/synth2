@@ -25,7 +25,7 @@ import synth2.filter : FilterKind, filterNames;
 import synth2.modfilter : ModFilter;
 version (unittest) {} else import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator, Waveform, waveformNames;
-import synth2.params : Params, ParamBuilder, paramNames;
+import synth2.params : Params, ParamBuilder, paramNames, MEnvDest;
 
 version (unittest) {} else {
 // This define entry points for plugin formats,
@@ -76,6 +76,9 @@ class Synth2Client : Client {
     this._osc2.setSampleRate(sampleRate);
     this._oscSub.setSampleRate(sampleRate);
     this._filter.setSampleRate(sampleRate);
+    this._menv.setSampleRate(sampleRate);
+    this._menv.sustainLevel = 0;
+    this._menv.releaseTime = 0;
   }
 
   override void processAudio(const(float*)[] inputs, float*[] outputs,
@@ -89,7 +92,9 @@ class Synth2Client : Client {
     const sync = readParam!bool(Params.osc2Sync);
     const ring = readParam!bool(Params.osc2Ring);
     const fm = readParam!float(Params.osc1FM);
-    const doFM = !sync && !ring && fm > 0;
+    const menvDest = readParam!MEnvDest(Params.menvDest);
+    const menvAmount = readParam!float(Params.menvAmount);
+    const doFM = !sync && !ring && (fm > 0 || (menvAmount != 0 && menvDest == MEnvDest.fm));
 
     const attack = readParam!float(Params.ampAttack) - ParamBuilder.logBias;
     const decay = readParam!float(Params.ampDecay) - ParamBuilder.logBias;
@@ -102,9 +107,9 @@ class Synth2Client : Client {
     const pw = readParam!float(Params.oscPulseWidth);
     const vel = readParam!float(Params.ampVel);
 
-    this.useOsc1 = oscMix != 1 || sync || ring || fm > 0;
+    const useOsc1 = oscMix != 1 || sync || ring || fm > 0;
     const osc1Det = readParam!float(Params.osc1Det);
-    this.useOsc1Det = osc1Det != 0;
+    const useOsc1Det = osc1Det != 0;
     if (useOsc1) {
       foreach (i, ref _osc1; _osc1s) {
         _osc1.setWaveform(readParam!Waveform(Params.osc1Waveform));
@@ -121,14 +126,14 @@ class Synth2Client : Client {
       }
     }
 
-    this.useOsc2 = oscMix != 0 || sync || ring || fm > 0;
+    const useOsc2 = oscMix != 0 || sync || ring || fm > 0;
+    const osc2NoteDiff = oscKeyShift + oscTune + readParam!int(Params.osc2Pitch)
+                         + readParam!float(Params.osc2Fine);
     if (useOsc2) {
       _osc2.setWaveform(readParam!Waveform(Params.osc2Waveform));
       _osc2.setPulseWidth(pw);
       _osc2.setNoteTrack(readParam!bool(Params.osc2Track));
-      _osc2.setNoteDiff(
-          oscKeyShift + oscTune +
-          readParam!int(Params.osc2Pitch) + readParam!float(Params.osc2Fine));
+      _osc2.setNoteDiff(osc2NoteDiff);
       _osc2.setVelocitySense(vel);
       _osc2.setADSR(attack, decay, sustain, release);
       if (oscPhase != ParamBuilder.ignoreOscPhase) {
@@ -137,7 +142,7 @@ class Synth2Client : Client {
     }
 
     const oscSubVol = exp2(readParam!float(Params.oscSubVol));
-    this.useOscSub = oscSubVol != 0;
+    const useOscSub = oscSubVol != 0;
     if (oscSubVol != 0) {
       _oscSub.setWaveform(readParam!Waveform(Params.oscSubWaveform));
       _oscSub.setNoteDiff(
@@ -171,53 +176,6 @@ class Synth2Client : Client {
     const saturation = readParam!float(Params.saturation);
     const satNorm = tanh(saturation);
 
-    this.updateFreq(frames);
-
-    // Generate samples.
-    foreach (frame; 0 .. frames) {
-      // osc1
-      float o1 = 0;
-      if (useOsc1) {
-        foreach (ref o; _osc1s) {
-          if (doFM) {
-            o.setFM(fm, _osc2);
-          }
-          o1 += o.front;
-          o.popFront();
-          if (osc1Det == 0) break;
-        }
-      }
-      float output = (1.0 - oscMix) * o1;
-
-      // osc2
-      if (useOsc2) {
-        if (sync) {
-          _osc2.synchronize(_osc1s[0]);
-        }
-        output += oscMix * _osc2.front * (ring ? o1 : 1f);
-        _osc2.popFront();
-      }
-
-      // oscSub
-      if (oscSubVol != 0) {
-        output += oscSubVol * _oscSub.front;
-        _oscSub.popFront();
-      }
-
-      if (saturation != 0) {
-        output = tanh(saturation * output) / satNorm;
-      }
-
-      outputs[0][frame] = ampGain * _filter.apply(output);
-      _filter.popFront();
-    }
-    foreach (chan; 1 .. outputs.length) {
-      outputs[chan][0 .. frames] = outputs[0][0 .. frames];
-    }
-  }
-
- private:
-  void updateFreq(int frames) {
     // Setup freq by MIDI and params.
     foreach (msg; this.getNextMidiMessages(frames)) {
       if (useOsc1) {
@@ -229,6 +187,7 @@ class Synth2Client : Client {
       if (useOsc2) _osc2.setMidi(msg);
       if (useOscSub) _oscSub.setMidi(msg);
       _filter.setMidi(msg);
+      _menv.setMidi(msg);
     }
     if (useOsc1) {
       foreach (ref o; _osc1s) {
@@ -238,11 +197,69 @@ class Synth2Client : Client {
     }
     if (useOsc2) _osc2.updateFreq();
     if (useOscSub) _oscSub.updateFreq();
+
+    _menv.attackTime = readParam!float(Params.menvAttack);
+    _menv.decayTime = readParam!float(Params.menvDecay);
+
+    // Generate samples.
+    foreach (frame; 0 .. frames) {
+      float menvVal = menvAmount * _menv.front;
+      _menv.popFront();
+
+      // osc1
+      float o1 = 0;
+      if (useOsc1) {
+        foreach (ref Oscillator o; _osc1s) {
+          if (menvDest == MEnvDest.pw) {
+            o.setPulseWidth(pw + menvVal);
+          }
+          if (doFM) {
+            o.setFM(fm + menvVal, _osc2);
+          }
+          o1 += o.front;
+          o.popFront();
+          if (osc1Det == 0) break;
+        }
+      }
+      float output = (1.0 - oscMix) * o1;
+
+      // osc2
+      if (useOsc2) {
+        if (menvDest == MEnvDest.osc2 && menvAmount != 0) {
+          _osc2.setNoteDiff(osc2NoteDiff + menvVal);
+          _osc2.updateFreq();
+        }
+        _osc2.setPulseWidth(pw + menvVal);
+        if (sync) {
+          _osc2.synchronize(_osc1s[0]);
+        }
+        output += oscMix * _osc2.front * (ring ? o1 : 1f);
+        _osc2.popFront();
+      }
+
+      // oscSub
+      if (useOscSub) {
+        _oscSub.setPulseWidth(pw + menvVal);
+        output += oscSubVol * _oscSub.front;
+        _oscSub.popFront();
+      }
+
+      if (saturation != 0) {
+        output = tanh(saturation * output) / satNorm;
+      }
+
+      outputs[0][frame] = ampGain * _filter.apply(output);
+      _filter.popFront();
+      _menv.popFront();
+    }
+    foreach (chan; 1 .. outputs.length) {
+      outputs[chan][0 .. frames] = outputs[0][0 .. frames];
+    }
   }
 
-  bool useOsc1, useOsc2, useOscSub, useOsc1Det;
+ private:
   ModFilter _filter;
-  ADSR _filterEnvelope, _modEnvelope;
+  ADSR _menv;
   Oscillator _osc2, _oscSub;
   Oscillator[8] _osc1s;  // +7 for detune
   version (unittest) {} else Synth2GUI _gui;

@@ -1,6 +1,8 @@
 module synth2.envelope;
 
 import std.math : isNaN;
+
+import dplug.client.midi : MidiMessage;
 import mir.math.common : fastmath;
 
 /// Envelope stages.
@@ -37,6 +39,7 @@ struct ADSR {
     this.frameWidth = 1f / sampleRate;
     this._stage = Stage.done;
     this._stageTime = 0;
+    this._nplay = 0;
   }
 
   bool empty() const { return this._stage == Stage.done; }
@@ -92,11 +95,23 @@ struct ADSR {
     }
   }
 
+  @system void setMidi(MidiMessage msg) {
+    if (msg.isNoteOn) {
+      if (_nplay == 0) this.attack();
+      ++_nplay;
+    }
+    if (msg.isNoteOff) {
+      --_nplay;
+      if (_nplay == 0) this.release();
+    }
+  }
+
  private:
   Stage _stage = Stage.done;
   float frameWidth = 1.0 / 44100;
   float _stageTime = 0;
   float _releaseLevel;
+  int _nplay = 0;
 }
 
 /// Test ADSR.
