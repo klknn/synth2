@@ -25,7 +25,7 @@ import synth2.filter : FilterKind, filterNames;
 import synth2.modfilter : ModFilter;
 version (unittest) {} else import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator, Waveform, waveformNames;
-import synth2.params : Params, ParamBuilder, paramNames, MEnvDest;
+import synth2.params : Params, ParamBuilder, paramNames, MEnvDest, menvDestNames;
 
 version (unittest) {} else {
 // This define entry points for plugin formats,
@@ -225,6 +225,9 @@ class Synth2Client : Client {
 
       // osc2
       if (useOsc2) {
+        if (menvDest == MEnvDest.pw) {
+          _osc2.setPulseWidth(pw + menvVal);
+        }
         if (menvDest == MEnvDest.osc2 && menvAmount != 0) {
           _osc2.setNoteDiff(osc2NoteDiff + menvVal);
           _osc2.updateFreq();
@@ -239,7 +242,9 @@ class Synth2Client : Client {
 
       // oscSub
       if (useOscSub) {
-        _oscSub.setPulseWidth(pw + menvVal);
+        if (menvDest == MEnvDest.pw) {
+          _oscSub.setPulseWidth(pw + menvVal);
+        }
         output += oscSubVol * _oscSub.front;
         _oscSub.popFront();
       }
@@ -287,6 +292,10 @@ struct TestHost {
     else static if (is(T == FilterKind)) {
       double v;
       assert(p.normalizedValueFromString(filterNames[val], v));
+    }
+    else static if (is(T == MEnvDest)) {
+      double v;
+      assert(p.normalizedValueFromString(menvDestNames[val], v));
     }
     else static if (is(T == bool)) {
       auto v = val ? 1.0 : 0.0;
@@ -556,4 +565,24 @@ unittest {
   // assert(host.paramChangeOutputs!(Params.filterDecay)(10.0));
   // assert(host.paramChangeOutputs!(Params.filterSustain)(-10));
   // assert(host.paramChangeOutputs!(Params.filterRelease)(1.0));
+}
+
+/// Test filter
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  host.frames = 1000;
+  host.setParam!(Params.oscMix)(0.5);
+  host.setParam!(Params.osc1Waveform)(Waveform.pulse);
+  assert(host.paramChangeOutputs!(Params.menvAmount)(1.0));
+  host.setParam!(Params.menvAmount)(1.0);
+
+  foreach (dest; EnumMembers!MEnvDest) {
+    host.setParam!(Params.menvDest)(dest);
+    assert(host.paramChangeOutputs!(Params.menvAmount)(0.5));
+    assert(host.paramChangeOutputs!(Params.menvAttack)(1.0));
+    assert(host.paramChangeOutputs!(Params.menvDecay)(1.0));
+  }
 }
