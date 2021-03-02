@@ -9,86 +9,20 @@ module synth2.oscillator;
 
 import std.math : isNaN;
 
-import dplug.core.math : TAU, convertDecibelToLinearGain; // convertMIDINoteToFrequency;
+import dplug.core.math : convertDecibelToLinearGain;
 import dplug.client.midi : MidiMessage, MidiStatus;
-import mir.random : rand;
-import mir.random.engine.xoshiro : Xoshiro128StarStar_32;
-import mir.math : sin, PI, fmin, log2, exp2, log10, fastmath;
+import mir.math : log2, exp2, fastmath, PI;
 
 import synth2.envelope : ADSR;
+import synth2.waveform : Waveform, waveformNames, WaveformRange;
 
 @safe nothrow @nogc:
 
-float convertMIDINoteToFrequency(float note) @fastmath
+float convertMIDINoteToFrequency(float note) @fastmath pure
 {
     return 440.0f * exp2((note - 69.0f) / 12.0f);
 }
 
-
-/// Waveform kind.
-enum Waveform {
-  sine,
-  saw,
-  pulse,
-  triangle,
-  noise,
-}
-
-static immutable waveformNames = [__traits(allMembers, Waveform)];
-
-/// Waveform range.
-struct WaveformRange {
-  float freq = 440;
-  float phase = 0;  // [0 .. 2 * PI (=TAU)]
-  float normalized = false;
-  float sampleRate = 44100;
-  float pulseWidth = 0.5;
-  Waveform waveform = Waveform.sine;
-  static rng = Xoshiro128StarStar_32(0u);
-
-  @safe nothrow @nogc @fastmath:
-
-  enum empty = false;
-
-  float front() const {
-    final switch (this.waveform) {
-      case Waveform.saw:
-        return 1.0 - this.phase / PI;
-      case Waveform.sine:
-        return sin(this.phase);
-      case Waveform.pulse:
-        return this.phase <= this.pulseWidth * TAU ? 1f : -1f;
-      case Waveform.triangle:
-        return 2f * fmin(this.phase, TAU - this.phase) / PI - 1f;
-      case Waveform.noise:
-        return rand!float(this.rng);
-    }
-  }
-
-  pure void popFront() {
-    this.phase += this.freq * TAU / this.sampleRate;
-    this.normalized = false;
-    if (this.phase >= TAU) {
-      this.phase %= TAU;
-      this.normalized = true;
-    }
-  }
-}
-
-///
-@safe nothrow @nogc unittest {
-  import std.range;
-  assert(isInputRange!WaveformRange);
-  assert(isInfinite!WaveformRange);
-
-  WaveformRange w;
-  w.waveform = Waveform.noise;
-  foreach (_; 0 .. 10) {
-    assert(-1 < w.front && w.front < 1);
-    assert(0 <= w.phase && w.phase <= TAU);
-    w.popFront();
-  }
-}
 
 /// Mono voice status (subosc).
 struct VoiceStatus {
@@ -100,7 +34,9 @@ struct VoiceStatus {
 
   @nogc nothrow @safe @fastmath:
 
-  bool isPlaying() const { return !this.envelope.empty; }
+  pure bool isPlaying() const {
+    return !this.envelope.empty;
+  }
 
   float front() const {
     if (!this.isPlaying) return 0f;
@@ -130,14 +66,14 @@ struct VoiceStatus {
 /// [-20, -0.9, 0] dB if sensitivity = 1.0, bias = 1e-3
 /// [-11, -1.9, -1] if sensitivity = 0.5, bias = 1e-3
 /// [-10, -10, -10] if sensitivity = 0.0, bias = 1e-3
-float velocityToDB(int velocity, float sensitivity = 1.0, float bias = 1e-1) @fastmath {
+float velocityToDB(int velocity, float sensitivity = 1.0, float bias = 1e-1) @fastmath pure {
   assert(0 <= velocity && velocity <= 127);
   auto scaled = (velocity / 127f - bias) * sensitivity + bias;
   return log2(scaled + 1e-6);
 }
 
 ///
-@system unittest {
+@system pure unittest {
   import std.math : approxEqual;
   auto sens = 1.0;
   assert(approxEqual(convertDecibelToLinearGain(velocityToDB(127, sens)), 1f));
@@ -182,7 +118,7 @@ struct Oscillator
     }
   }
 
-  void setVelocitySense(float value) {
+  pure void setVelocitySense(float value) {
     this._velocitySense = value;
   }
 
@@ -258,7 +194,7 @@ struct Oscillator
   }
 
   /// Updates frequency by MIDI and params.
-  void updateFreq() @system {
+  pure void updateFreq() @system {
     foreach (ref v; _voices) {
       if (v.isPlaying) {
         v.wave.freq = convertMIDINoteToFrequency(this.note(v));
@@ -266,18 +202,21 @@ struct Oscillator
     }
   }
 
-  auto voices() const {
-    return _voices;
+  pure bool isPlaying() const {
+    foreach (ref v; _voices) {
+      if (v.isPlaying) return true;
+    }
+    return false;
   }
 
-  auto lastUsedWave() const {
+  pure WaveformRange lastUsedWave() const {
     return _voices[_lastUsedId].wave;
   }
 
  private:
 
   // TODO: use optional
-  int getUnusedVoiceId() {
+  pure int getUnusedVoiceId() const {
     foreach (i; 0 .. voicesCount) {
       if (!_voices[i].isPlaying) {
         return cast(int) i;
@@ -286,7 +225,7 @@ struct Oscillator
     return -1;
   }
 
-  void markNoteOn(MidiMessage midi) @system {
+  pure void markNoteOn(MidiMessage midi) @system {
     const i = this.getUnusedVoiceId();
     if (i == -1) {
       /*
@@ -305,7 +244,7 @@ struct Oscillator
     _lastUsedId = i;
   }
 
-  void markNoteOff(int note) {
+  pure void markNoteOff(int note) {
     foreach (ref v; this._voices) {
       if (v.isPlaying && v.note == note) {
         v.envelope.release();
@@ -324,12 +263,4 @@ struct Oscillator
   size_t _lastUsedId = 0;
 
   VoiceStatus[voicesCount] _voices;
-}
-
-@system
-unittest {
-  import dplug.client.midi;
-
-  auto m = makeMidiMessagePitchWheel(0, 0, 0.5);
-  assert(m.pitchWheel == 0.5);
 }

@@ -24,7 +24,8 @@ import synth2.envelope : ADSR;
 import synth2.filter : FilterKind, filterNames;
 import synth2.modfilter : ModFilter;
 version (unittest) {} else import synth2.gui : Synth2GUI;
-import synth2.oscillator : Oscillator, Waveform, waveformNames;
+import synth2.oscillator : Oscillator;
+import synth2.waveform : Waveform, waveformNames;
 import synth2.params : Params, ParamBuilder, paramNames, MEnvDest, menvDestNames;
 
 version (unittest) {} else {
@@ -438,14 +439,14 @@ unittest {
   host.processAudio();
   // Check the detune osc1s are NOT playing.
   foreach (o; host.client._osc1s[1 .. $]) {
-    assert(!o.voices[0].isPlaying);
+    assert(!o.isPlaying);
   }
 
   host.setParam!(Params.osc1Det)(1.0);
   host.processAudio();
   // Check all the osc1s are playing.
   foreach (o; host.client._osc1s) {
-    assert(o.voices[0].isPlaying);
+    assert(o.isPlaying);
   }
 }
 

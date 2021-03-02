@@ -15,7 +15,7 @@ import dplug.client.params : BoolParameter, EnumParameter, FloatParameter,
   Parameter, PowFloatParameter;
 import mir.math.constant : PI;
 
-import synth2.oscillator : Waveform, waveformNames;
+import synth2.waveform : Waveform, waveformNames;
 import synth2.filter : filterNames, FilterKind;
 
 /// Parameter ids.
