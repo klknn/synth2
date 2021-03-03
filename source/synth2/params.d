@@ -15,6 +15,7 @@ import dplug.client.params : BoolParameter, EnumParameter, FloatParameter,
   Parameter, PowFloatParameter;
 import mir.math.constant : PI;
 
+import synth2.effect : EffectKind, effectNames;
 import synth2.waveform : Waveform, waveformNames;
 import synth2.filter : filterNames, FilterKind;
 
@@ -68,10 +69,26 @@ enum Params : int {
   menvAttack,
   menvDecay,
   menvAmount,
+
+  /// LFO1
+  // lfo1Wave,
+  // lfo1Dest,
+  // lfo1Speed,
+  // lfo1Amount,
+  // lfo1Key,
+
+  /// LFO2
+
+  /// Effect
+  effectKind,
+  effectCtrl1,
+  effectCtrl2,
+  effectMix,
 }
 
 static immutable paramNames = [__traits(allMembers, Params)];
 
+/// Modulation envelope destination.
 enum MEnvDest {
   osc2,
   fm,
@@ -80,6 +97,15 @@ enum MEnvDest {
 
 static immutable menvDestNames = [__traits(allMembers, MEnvDest)];
 
+/// LFO modulation destination.
+enum LfoDest {
+  osc2,
+  osc12,
+  amo,
+  pw,
+  fm,
+  pan,
+}
 
 /// Setup default parameter.
 struct ParamBuilder {
@@ -162,7 +188,7 @@ struct ParamBuilder {
   // TODO: check synth1 max vol.
   static oscSubVol() {
     return mallocNew!GainParameter(
-        Params.oscSubVol, "OscSub/Gain", 0.0f, -float.infinity);
+        Params.oscSubVol, "OscSub/Gain", 3, -float.infinity);
   }
 
   static oscSubOct() {
@@ -274,6 +300,26 @@ struct ParamBuilder {
   static menvAmount() {
     return mallocNew!LinearFloatParameter(
         Params.menvAmount, "MEnv/Amount", "", -100, 100, 0);
+  }
+
+  static effectKind() {
+    return mallocNew!EnumParameter(
+        Params.effectKind, "Effect/Kind", effectNames, EffectKind.ad1);
+  }
+
+  static effectCtrl1() {
+    return mallocNew!LinearFloatParameter(
+        Params.effectCtrl1, "Effect/Ctrl1", "", 0, 1, 0.5);
+  }
+
+  static effectCtrl2() {
+    return mallocNew!LinearFloatParameter(
+        Params.effectCtrl2, "Effect/Ctrl2", "", 0, 1, 0.5);
+  }
+
+  static effectMix() {
+    return mallocNew!LinearFloatParameter(
+        Params.effectMix, "Effect/Mix", "", 0, 1, 0);
   }
 
   @nogc nothrow:

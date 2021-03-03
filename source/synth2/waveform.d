@@ -50,8 +50,8 @@ struct WaveformRange {
     }
   }
 
-  pure void popFront() {
-    this.phase += this.freq * 2 * PI / this.sampleRate;
+  pure void popFront(long n = 1) {
+    this.phase += this.freq * 2 * PI / this.sampleRate * n;
     this.normalized = false;
     if (this.phase >= 2 * PI) {
       this.phase %= 2 * PI;

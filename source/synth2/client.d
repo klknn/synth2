@@ -20,6 +20,7 @@ import dplug.client.params : Parameter;
 import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn, makeMidiMessageNoteOff;
 import mir.math : exp2, log, sqrt, PI, fastmath;
 
+import synth2.effect : EffectKind, MultiEffect, effectNames;
 import synth2.envelope : ADSR;
 import synth2.filter : FilterKind, filterNames;
 import synth2.modfilter : ModFilter;
@@ -38,6 +39,15 @@ mixin(pluginEntryPoints!Synth2Client);
 class Synth2Client : Client {
  public:
   nothrow @nogc @fastmath:
+
+  this() {
+    super();
+    _effect = mallocNew!MultiEffect;
+  }
+
+  ~this() {
+    destroyFree(_effect);
+  }
 
   // NOTE: this method will not call until GUI required (lazy)
   version (unittest) {} else
@@ -80,6 +90,7 @@ class Synth2Client : Client {
     this._menv.setSampleRate(sampleRate);
     this._menv.sustainLevel = 0;
     this._menv.releaseTime = 0;
+    this._effect.setSampleRate(sampleRate);
   }
 
   override void processAudio(const(float*)[] inputs, float*[] outputs,
@@ -202,6 +213,14 @@ class Synth2Client : Client {
     _menv.attackTime = readParam!float(Params.menvAttack);
     _menv.decayTime = readParam!float(Params.menvDecay);
 
+    // Setup _effect.
+    const effectMix = readParam!float(Params.effectMix);
+    if (effectMix != 0) {
+      _effect.setEffectKind(readParam!EffectKind(Params.effectKind));
+      _effect.setParams(readParam!float(Params.effectCtrl1),
+                        readParam!float(Params.effectCtrl2));
+    }
+
     // Generate samples.
     foreach (frame; 0 .. frames) {
       float menvVal = menvAmount * _menv.front;
@@ -254,7 +273,11 @@ class Synth2Client : Client {
         output = tanh(saturation * output) / satNorm;
       }
 
-      outputs[0][frame] = ampGain * _filter.apply(output);
+      output = _filter.apply(output);
+      if (effectMix != 0) {
+        output = effectMix * _effect.apply(output) + (1f - effectMix) * output;
+      }
+      outputs[0][frame] = ampGain * output;
       _filter.popFront();
       _menv.popFront();
     }
@@ -264,6 +287,7 @@ class Synth2Client : Client {
   }
 
  private:
+  MultiEffect _effect;
   ModFilter _filter;
   ADSR _menv;
   Oscillator _osc2, _oscSub;
@@ -289,6 +313,10 @@ struct TestHost {
     static if (is(T == Waveform)) {
       double v;
       assert(p.normalizedValueFromString(waveformNames[val], v));
+    }
+    else static if (is(T == EffectKind)) {
+      double v;
+      assert(p.normalizedValueFromString(effectNames[val], v));
     }
     else static if (is(T == FilterKind)) {
       double v;
@@ -585,5 +613,24 @@ unittest {
     assert(host.paramChangeOutputs!(Params.menvAmount)(0.5));
     assert(host.paramChangeOutputs!(Params.menvAttack)(1.0));
     assert(host.paramChangeOutputs!(Params.menvDecay)(1.0));
+  }
+}
+
+/// Test effect
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  host.frames = 1000;
+  host.setParam!(Params.effectMix)(1.0);
+
+  static immutable kinds = [EnumMembers!EffectKind];
+  foreach (EffectKind kind; kinds) {
+    // TODO: fix comp
+    if (kind == EffectKind.comp) continue;
+    host.setParam!(Params.effectKind)(kind);
+    assert(host.paramChangeOutputs!(Params.effectCtrl1)(0.1));
+    // assert(host.paramChangeOutputs!(Params.effectCtrl2)(0.1));
   }
 }

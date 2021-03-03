@@ -13,24 +13,23 @@ import dplug.core.nogc : mallocNew, destroyFree;
 import mir.math : powi, exp, fabs, PI;
 
 import synth2.waveform : Waveform, WaveformRange;
-import synth2.filter : Filter, FilterKind;
+import synth2.filter : Filter, FilterKind, AllPassFilter;
 
 /// Base effect class.
-class BaseEffect {
- public:
+interface IEffect {
   nothrow @nogc:
   /// Sets the sample rate from host.
-  void setSampleRate(float sampleRate) {};
+  void setSampleRate(float sampleRate);
 
   /// Sets parameters for the effect, ctrls are in [0, 1].
-  void setParams(float ctrl1, float ctrl2) {}
+  void setParams(float ctrl1, float ctrl2);
 
   /// Applies the effect configured by ctrl1/2.
-  float apply(float x) { return x; }
+  float apply(float x);
 }
 
 /// Base distortion with LPF.
-abstract class BaseDistortion : BaseEffect {
+abstract class BaseDistortion : IEffect {
  public:
   nothrow @nogc @safe pure:
 
@@ -81,7 +80,7 @@ class DigitalDistortion : BaseDistortion {
   }
 }
 
-class Resampler : BaseEffect {
+class Resampler : IEffect {
  public:
   nothrow @nogc @safe pure:
 
@@ -117,7 +116,7 @@ class Resampler : BaseEffect {
   int _frame;
 }
 
-class RingMod : BaseEffect {
+class RingMod : IEffect {
  public:
   nothrow @nogc @safe:
 
@@ -138,7 +137,7 @@ class RingMod : BaseEffect {
   WaveformRange _wave = { waveform: Waveform.sine };
 }
 
-class Compressor : BaseEffect {
+class Compressor : IEffect {
  public:
   nothrow @nogc @safe pure:
 
@@ -172,6 +171,44 @@ class Compressor : BaseEffect {
   int _frame;
 }
 
+/// Phase effect.
+/// See_also:
+///   https://ccrma.stanford.edu/realsimple/DelayVar/Phasing_First_Order_Allpass_Filters.html
+class Phaser(size_t n) : IEffect {
+ public:
+  nothrow @nogc:
+  /// Sets the sample rate from host.
+  void setSampleRate(float sampleRate) {
+    foreach (ref f; _filters) {
+      f.setSampleRate(sampleRate);
+    }
+  }
+
+  /// Sets parameters for the effect, ctrls are in [0, 1].
+  /// Params:
+  ///   ctrl1 = all-pass filter cutoff.
+  ///   ctrl2 = mix balance btw dry and phase shifted signals.
+  void setParams(float ctrl1, float ctrl2) {
+    foreach (ref f; _filters) {
+      f.g = ctrl1;
+    }
+    _mix = ctrl2;
+  }
+
+  /// Applies the effect configured by ctrl1/2.
+  float apply(float x) {
+    float y = x;
+    foreach (ref f; _filters) {
+      y = f.apply(y);
+    }
+    return _mix * y + (1 - _mix) * x;
+  }
+
+ private:
+  AllPassFilter[n] _filters;
+  float _mix;
+}
+
 /// Effect ids to select one in MultiEffect._effect;
 enum EffectKind {
   ad1,
@@ -180,10 +217,13 @@ enum EffectKind {
   deci,
   ring,
   comp,
+  ph3,
 }
 
+static immutable effectNames = [__traits(allMembers, EffectKind)];
+
 /// Multi effect class for the plugin client.
-class MultiEffect : BaseEffect {
+class MultiEffect : IEffect {
  public:
   nothrow @nogc:
 
@@ -194,6 +234,7 @@ class MultiEffect : BaseEffect {
     _effects[EffectKind.deci] = mallocNew!Resampler;
     _effects[EffectKind.comp] = mallocNew!Compressor;
     _effects[EffectKind.ring] = mallocNew!RingMod;
+    _effects[EffectKind.ph3] = mallocNew!(Phaser!3);
   }
 
   ~this() {
@@ -207,7 +248,8 @@ class MultiEffect : BaseEffect {
   }
 
   override void setSampleRate(float sampleRate) {
-    foreach (BaseEffect e; _effects) {
+    foreach (IEffect e; _effects) {
+      if (e is null) continue;
       e.setSampleRate(sampleRate);
     }
   }
@@ -222,7 +264,7 @@ class MultiEffect : BaseEffect {
 
  private:
   EffectKind _current;
-  BaseEffect[EnumMembers!EffectKind.length] _effects;
+  IEffect[EnumMembers!EffectKind.length] _effects;
 }
 
 @nogc nothrow @system

@@ -128,3 +128,22 @@ unittest {
                      f.b[0] * 0.4 + f.b[1] * 0.3 + f.b[0] * 0.2
                      -f.a[0] * y2 - f.a[1] * y1));
 }
+
+/// Single frame delayed all pass filter.
+struct AllPassFilter {
+  @nogc nothrow pure @safe:
+
+  float g = 0.5, py = 0, px = 0;
+
+  void setSampleRate(float sampleRate) {
+    py = 0;
+    px = 0;
+  }
+
+  float apply(float x) {
+    const y = g * x + px - g * py;
+    px = x;
+    py = y;
+    return y;
+  }
+}
