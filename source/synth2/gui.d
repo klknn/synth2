@@ -1,4 +1,6 @@
 /**
+   Synth2 graphical user interface.
+
    Copyright: klknn, 2021.
    License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
@@ -9,11 +11,11 @@ version (unittest) {} else:
 import dplug.core : mallocNew, destroyFree;
 import dplug.graphics.color : RGBA;
 import dplug.graphics.font : Font;
-// import dplug.client : Parameter;
-import dplug.client.params;
-import dplug.pbrwidgets; // : PBRBackgroundGUI, UILabel, UIOnOffSwitch, UIKnob;
-import gfm.math : box2i;
+import dplug.client.params : BoolParameter, FloatParameter, Parameter;
+import dplug.pbrwidgets : PBRBackgroundGUI, UILabel, UIOnOffSwitch, UIKnob, UISlider, KnobStyle, HandleStyle;
+import gfm.math : box2i, rectangle;
 
+import synth2.effect : effectNames;
 import synth2.filter : filterNames;
 import synth2.params : typedParam, Params, menvDestNames;
 
@@ -59,15 +61,15 @@ public:
     y = marginH;
     auto synth2 = addLabel("Synth2");
     synth2.textSize(fontLarge);
-    synth2.position(box2i.rectangle(0, y, 80, fontLarge));
+    synth2.position(rectangle(0, y, 80, fontLarge));
     // auto url = addLabel("https://github.com/klknn/synth2");
     // url.targetURL = "https://github.com/klknn/synth2";
     // url.clickable = true;
     // url.textSize(fontSmall);
-    // url.position(box2i.rectangle(screenWidth * 2 / 3,
+    // url.position(rectangle(screenWidth * 2 / 3,
     //                              screenHeight - fontMedium, 150, fontMedium));
     auto date = addLabel("v0.00 " ~ __DATE__);
-    date.position(box2i.rectangle(screenWidth - 100, y, 100, fontMedium));
+    date.position(rectangle(screenWidth - 100, y, 100, fontMedium));
     date.textSize(fontMedium);
 
 
@@ -78,12 +80,12 @@ public:
     // y += 50;
     // auto oscLab = addLabel("[Oscillators]");
     // oscLab.textSize(fontMedium);
-    // oscLab.position(box2i.rectangle(marginW, synth2.position.max.y + marginH,
+    // oscLab.position(rectangle(marginW, synth2.position.max.y + marginH,
     //                                 80, fontMedium));
     // osc1
     auto osc1lab = this.addLabel("Osc1");
     osc1lab.textSize(fontMedium);
-    osc1lab.position(box2i.rectangle(
+    osc1lab.position(rectangle(
         marginW, // oscLab.position.min.x + marginW,
         synth2.position.max.y + marginH, // oscLab.position.max.y + marginH,
         25, fontMedium));
@@ -96,13 +98,13 @@ public:
     );
     auto osc1det = this.addKnob(
         cast(FloatParameter) parameters[Params.osc1Det],
-        box2i.rectangle(
+        rectangle(
             osc1wave.position.max.x + osc1wave.position.width + marginW,
             osc1wave.position.min.y, knobRad, knobRad),
         "det");
     auto osc1fm = this.addKnob(
           cast(FloatParameter) parameters[Params.osc1FM],
-          box2i.rectangle(
+          rectangle(
               osc1det.position.min.x,
               osc1det.position.max.y + fontMedium + marginH,
               knobRad, knobRad),
@@ -112,13 +114,13 @@ public:
     // oscSub
     auto oscSublab = this.addLabel("OscSub");
     oscSublab.textSize(fontMedium);
-    oscSublab.position(box2i.rectangle(
+    oscSublab.position(rectangle(
         osc1det.position.max.x,
         osc1lab.position.min.y,
         50, fontMedium));
     auto oscSubwave = this.addSlider(
         parameters[Params.oscSubWaveform],
-        box2i.rectangle(
+        rectangle(
             oscSublab.position.min.x + marginW, osc1wave.position.min.y,
             slideWidth, slideHeight),
         "wave",
@@ -126,14 +128,14 @@ public:
     );
     auto oscSubVol = this.addKnob(
         cast(FloatParameter) parameters[Params.oscSubVol],
-        box2i.rectangle(
+        rectangle(
             oscSubwave.position.max.x + oscSubwave.position.width + marginW,
             oscSubwave.position.min.y,
             knobRad, knobRad),
         "vol  ");
     auto oscSubOct = this.addSwitch(
         typedParam!(Params.oscSubOct)(parameters),
-        box2i.rectangle(oscSubVol.position.min.x,
+        rectangle(oscSubVol.position.min.x,
                         osc1fm.position.min.y,
                         knobRad, knobRad),
         "-1oct"
@@ -143,7 +145,7 @@ public:
     // osc2
     auto osc2lab = this.addLabel("Osc2");
     osc2lab.textSize(fontMedium);
-    osc2lab.position(box2i.rectangle(
+    osc2lab.position(rectangle(
         osc1lab.position.min.x,
         osc1wave.position.max.y + fontMedium + marginH * 2,
         25, fontMedium));
@@ -157,14 +159,14 @@ public:
     );
     auto osc2ring = this.addSwitch(
         typedParam!(Params.osc2Ring)(parameters),
-        box2i.rectangle(osc1det.position.min.x,
+        rectangle(osc1det.position.min.x,
                         osc2wave.position.min.y,
                         knobRad, knobRad),
         "ring"
     );
     auto osc2sync = this.addSwitch(
         typedParam!(Params.osc2Sync)(parameters),
-        box2i.rectangle(osc2ring.position.min.x,
+        rectangle(osc2ring.position.min.x,
                         osc2ring.position.max.y + fontMedium + marginH,
                         knobRad, knobRad),
         "sync"
@@ -172,20 +174,20 @@ public:
     static const pitchLabels = ["-12", "-6", "0", "6", "12"];
     auto osc2pitch = this.addSlider(
         parameters[Params.osc2Pitch],
-        box2i.rectangle(
+        rectangle(
             oscSubwave.position.min.x, osc2ring.position.min.y,
             slideWidth, slideHeight),
         "pitch", pitchLabels);
     auto osc2tune = this.addKnob(
         cast(FloatParameter) parameters[Params.osc2Fine],
-        box2i.rectangle(
+        rectangle(
             oscSubVol.position.min.x,
             osc2ring.position.min.y,
             knobRad, knobRad),
         "tune");
     auto osc2track = this.addSwitch(
         typedParam!(Params.osc2Track)(parameters),
-        box2i.rectangle(osc2tune.position.min.x,
+        rectangle(osc2tune.position.min.x,
                         osc2sync.position.min.y,
                         knobRad, knobRad),
         "track"
@@ -194,19 +196,19 @@ public:
     // osc misc
     auto oscMaster = this.addLabel("Master");
     oscMaster.textSize(fontMedium);
-    oscMaster.position(box2i.rectangle(
+    oscMaster.position(rectangle(
         oscSubVol.position.max.x + marginW,
         oscSublab.position.min.y,
         40, fontMedium));
     auto oscKeyShift = this.addSlider(
         parameters[Params.oscKeyShift],
-        box2i.rectangle(oscMaster.position.min.x + marginW,
+        rectangle(oscMaster.position.min.x + marginW,
                         osc1wave.position.min.y,
                         slideWidth, slideHeight),
         "shift", pitchLabels);
     auto oscMasterMix = this.addKnob(
         typedParam!(Params.oscMix)(parameters),
-        box2i.rectangle(
+        rectangle(
             oscKeyShift.position.max.x + oscKeyShift.position.width + marginW,
             osc1det.position.min.y,
             knobRad, knobRad),
@@ -214,21 +216,21 @@ public:
     );
     auto oscMasterPhase = this.addKnob(
         typedParam!(Params.oscPhase)(parameters),
-        box2i.rectangle(oscMasterMix.position.min.x,
+        rectangle(oscMasterMix.position.min.x,
                         osc1fm.position.min.y,
                         knobRad, knobRad),
         "phase",
     );
     auto oscMasterPW = this.addKnob(
         typedParam!(Params.oscPulseWidth)(parameters),
-        box2i.rectangle(oscMasterMix.position.max.x + marginW,
+        rectangle(oscMasterMix.position.max.x + marginW,
                         oscMasterMix.position.min.y,
                         knobRad, knobRad),
         "p/w",
     );
     auto oscMasterTune = this.addKnob(
         typedParam!(Params.oscTune)(parameters),
-        box2i.rectangle(oscMasterPW.position.min.x,
+        rectangle(oscMasterPW.position.min.x,
                         oscMasterPhase.position.min.y,
                         knobRad, knobRad),
         "tune",
@@ -237,14 +239,14 @@ public:
     // Amplifier
     auto ampGain = this.addKnob(
         typedParam!(Params.ampGain)(parameters),
-        box2i.rectangle(oscMasterPhase.position.min.x,
+        rectangle(oscMasterPhase.position.min.x,
                         oscMasterPhase.position.max.y + marginH + fontMedium,
                         knobRad, knobRad),
         "gain",
     );
     auto ampVel = this.addKnob(
         typedParam!(Params.ampVel)(parameters),
-        box2i.rectangle(oscMasterTune.position.min.x,
+        rectangle(oscMasterTune.position.min.x,
                         oscMasterTune.position.max.y + marginH + fontMedium,
                         knobRad, knobRad),
         "vel",
@@ -252,34 +254,34 @@ public:
 
     auto ampLab = this.addLabel("AmpEnv");
     ampLab.textSize(fontMedium);
-    ampLab.position(box2i.rectangle(
+    ampLab.position(rectangle(
         oscMasterPW.position.max.x + marginW,
         osc1lab.position.min.y,
         50, fontMedium));
     auto ampA = this.addSlider(
         typedParam!(Params.ampAttack)(parameters),
-        box2i.rectangle(ampLab.position.min.x + marginW,
+        rectangle(ampLab.position.min.x + marginW,
                         oscMasterPW.position.min.y,
                         slideWidth, slideHeight),
         "A", []
     );
     auto ampD = this.addSlider(
         typedParam!(Params.ampDecay)(parameters),
-        box2i.rectangle(ampA.position.max.x + marginW,
+        rectangle(ampA.position.max.x + marginW,
                         oscMasterPW.position.min.y,
                         slideWidth, slideHeight),
         "D", []
     );
     auto ampS = this.addSlider(
         typedParam!(Params.ampSustain)(parameters),
-        box2i.rectangle(ampD.position.max.x + marginW,
+        rectangle(ampD.position.max.x + marginW,
                         oscMasterPW.position.min.y,
                         slideWidth, slideHeight),
         "S", []
     );
     auto ampR = this.addSlider(
         typedParam!(Params.ampRelease)(parameters),
-        box2i.rectangle(ampS.position.max.x + marginW,
+        rectangle(ampS.position.max.x + marginW,
                         oscMasterPW.position.min.y,
                         slideWidth, slideHeight),
         "R", []
@@ -288,48 +290,48 @@ public:
     // Filter
     auto filterLab = this.addLabel("Filter");
     filterLab.textSize(fontMedium);
-    filterLab.position(box2i.rectangle(
+    filterLab.position(rectangle(
         oscMaster.position.min.x,
         osc2lab.position.min.y,
         30, fontMedium));
     auto filterKind = this.addSlider(
         parameters[Params.filterKind],
-        box2i.rectangle(oscKeyShift.position.min.x, osc2pitch.position.min.y,
+        rectangle(oscKeyShift.position.min.x, osc2pitch.position.min.y,
                         slideWidth, slideHeight),
         "type", filterNames);
     auto filterCutoff = this.addKnob(
         typedParam!(Params.filterCutoff)(parameters),
-        box2i.rectangle(oscMasterMix.position.min.x,
+        rectangle(oscMasterMix.position.min.x,
                         filterKind.position.min.y,
                         knobRad, knobRad),
         "frq");
     auto filterQ = this.addKnob(
         typedParam!(Params.filterQ)(parameters),
-        box2i.rectangle(oscMasterMix.position.min.x,
+        rectangle(oscMasterMix.position.min.x,
                         osc2track.position.min.y,
                         knobRad, knobRad),
         "res");
     auto saturation = this.addKnob(
         typedParam!(Params.saturation)(parameters),
-        box2i.rectangle(oscMasterMix.position.min.x,
+        rectangle(oscMasterMix.position.min.x,
                         filterQ.position.max.y + fontMedium + marginH,
                         knobRad, knobRad),
         "sat");
     auto filterEnvAmount = this.addKnob(
         typedParam!(Params.filterEnvAmount)(parameters),
-        box2i.rectangle(filterCutoff.position.max.x + marginW,
+        rectangle(filterCutoff.position.max.x + marginW,
                         filterKind.position.min.y,
                         knobRad, knobRad),
         "amt");
     auto filterTrack = this.addKnob(
         typedParam!(Params.filterTrack)(parameters),
-        box2i.rectangle(filterEnvAmount.position.min.x,
+        rectangle(filterEnvAmount.position.min.x,
                         filterQ.position.min.y,
                         knobRad, knobRad),
         "track");
     auto filterVel = this.addSwitch(
         typedParam!(Params.filterUseVelocity)(parameters),
-        box2i.rectangle(filterTrack.position.min.x,
+        rectangle(filterTrack.position.min.x,
                         filterTrack.position.max.y + fontMedium + marginH,
                         knobRad, knobRad),
         "vel"
@@ -337,34 +339,34 @@ public:
 
     auto filterEnvLab = this.addLabel("FilterEnv");
     filterEnvLab.textSize(fontMedium);
-    filterEnvLab.position(box2i.rectangle(
+    filterEnvLab.position(rectangle(
         ampLab.position.min.x,
         filterLab.position.min.y,
         60, fontMedium));
     auto filterA = this.addSlider(
         typedParam!(Params.filterAttack)(parameters),
-        box2i.rectangle(ampA.position.min.x,
+        rectangle(ampA.position.min.x,
                         filterCutoff.position.min.y,
                         slideWidth, slideHeight),
         "A", []
     );
     auto filterD = this.addSlider(
         typedParam!(Params.filterDecay)(parameters),
-        box2i.rectangle(filterA.position.max.x + marginW,
+        rectangle(filterA.position.max.x + marginW,
                         filterCutoff.position.min.y,
                         slideWidth, slideHeight),
         "D", []
     );
     auto filterS = this.addSlider(
         typedParam!(Params.filterSustain)(parameters),
-        box2i.rectangle(filterD.position.max.x + marginW,
+        rectangle(filterD.position.max.x + marginW,
                         filterCutoff.position.min.y,
                         slideWidth, slideHeight),
         "S", []
     );
     auto filterR = this.addSlider(
         typedParam!(Params.filterRelease)(parameters),
-        box2i.rectangle(filterS.position.max.x + marginW,
+        rectangle(filterS.position.max.x + marginW,
                         filterCutoff.position.min.y,
                         slideWidth, slideHeight),
         "R", []
@@ -373,38 +375,63 @@ public:
     // mod env
     auto menvLabel = this.addLabel("ModEnv");
     menvLabel.textSize(fontMedium);
-    menvLabel.position(box2i.rectangle(
+    menvLabel.position(rectangle(
         ampR.position.max.x + marginW,
         osc1lab.position.min.y,
         45, fontMedium));
     auto menvDest = this.addSlider(
         parameters[Params.menvDest],
-        box2i.rectangle(
+        rectangle(
             menvLabel.position.min.x,
             menvLabel.position.max.y + marginH,
             slideWidth, slideHeight,
         ), "dst", menvDestNames);
     auto menvAmount = this.addKnob(
         typedParam!(Params.menvAmount)(parameters),
-        box2i.rectangle(
+        rectangle(
             menvDest.position.max.x + menvDest.position.width + marginW,
             menvDest.position.min.y,
             knobRad, knobRad),
         "amt");
     auto menvAttack = this.addKnob(
         typedParam!(Params.menvAttack)(parameters),
-        box2i.rectangle(
+        rectangle(
             menvAmount.position.min.x,
             menvAmount.position.max.y + fontSmall + marginH,
             knobRad, knobRad),
         "A");
     auto menvDecay = this.addKnob(
         typedParam!(Params.menvDecay)(parameters),
-        box2i.rectangle(
+        rectangle(
             menvAmount.position.min.x,
             menvAttack.position.max.y + fontSmall + marginH,
             knobRad, knobRad),
         "D");
+
+    // effect
+    auto effectLabel = this.addLabel("Effect");
+    effectLabel.textSize = fontMedium;
+    effectLabel.position = rectangle(
+        menvLabel.position.min.x, filterEnvLab.position.min.y, 50, fontMedium);
+    auto effectKind = this.addSlider(
+        parameters[Params.effectKind],
+        rectangle(effectLabel.position.min.x, filterR.position.min.y, slideWidth, slideHeight),
+        "kind", effectNames);
+    auto effectCtrl1 = this.addKnob(
+        typedParam!(Params.effectCtrl1)(parameters),
+        rectangle(effectKind.position.max.x + effectKind.position.width + marginW,
+                  effectKind.position.min.y, knobRad, knobRad),
+        "ctrl1");
+    auto effectCtrl2 = this.addKnob(
+        typedParam!(Params.effectCtrl2)(parameters),
+        rectangle(effectKind.position.max.x + effectKind.position.width + marginW,
+                  effectCtrl1.position.max.y + fontMedium + marginH, knobRad, knobRad),
+        "ctrl2");
+    auto effectMix = this.addKnob(
+        typedParam!(Params.effectMix)(parameters),
+        rectangle(effectKind.position.max.x + effectKind.position.width + marginW,
+                  effectCtrl2.position.max.y + fontMedium + marginH, knobRad, knobRad),
+        "mix");
   }
 
   UIKnob addKnob(FloatParameter p, box2i pos, string label) {
@@ -431,7 +458,7 @@ public:
     knob.unlitTrailDiffuse = unlitTrailDiffuse;
     auto lab = this.addLabel(label);
     lab.textSize(fontSmall);
-    lab.position(box2i.rectangle(knob.position.min.x - marginW, knob.position.max.y,
+    lab.position(rectangle(knob.position.min.x - marginW, knob.position.max.y,
                                  knob.position.width + marginW * 2, fontSmall));
     return knob;
   }
@@ -448,7 +475,7 @@ public:
     this.addChild(ui);
     auto lab = this.addLabel(label);
     lab.textSize(fontSmall);
-    lab.position(box2i.rectangle(pos.min.x - pos.width / 2, pos.max.y,
+    lab.position(rectangle(pos.min.x - pos.width / 2, pos.max.y,
                                  pos.width * 2, fontSmall));
     return ui;
   }
@@ -471,7 +498,7 @@ public:
       uint labelHeight = pos.height / cast(uint) vlabels.length;
       foreach (i, lab; vlabels) {
         UILabel l = addLabel(lab);
-        l.position(box2i.rectangle(
+        l.position(rectangle(
             pos.min.x + pos.width,
             cast(uint) (pos.min.y + (vlabels.length - i - 1) * labelHeight),
             pos.width, labelHeight));
@@ -481,7 +508,7 @@ public:
 
     auto lab = this.addLabel(label);
     lab.textSize(fontSmall);
-    lab.position(box2i.rectangle(pos.min.x, pos.max.y, 20, 20));
+    lab.position(rectangle(pos.min.x, pos.max.y, 20, 20));
     return ui;
   }
 

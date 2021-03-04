@@ -9,8 +9,9 @@ module synth2.effect;
 import std.math : tanh, sgn;
 import std.traits : EnumMembers;
 
+import dplug.core.math : convertLinearGainToDecibel, convertDecibelToLinearGain;
 import dplug.core.nogc : mallocNew, destroyFree;
-import mir.math : powi, exp, fabs, PI;
+import mir.math : powi, exp, fabs, PI, log2, floor;
 
 import synth2.waveform : Waveform, WaveformRange;
 import synth2.filter : Filter, FilterKind, AllPassFilter;
@@ -42,12 +43,12 @@ abstract class BaseDistortion : IEffect {
   ///   ctrl1 = distortion gain.
   ///   ctrl2 = LPF cutoff.
   override void setParams(float ctrl1, float ctrl2) {
-    _gain = ctrl1;
+    _gain = ctrl1 * 10;
     _lpf.setParams(FilterKind.LP12, ctrl2, 0);
   }
 
   override float apply(float x) {
-    return _lpf.apply(distort(_gain * x));
+    return _lpf.apply(distort(_gain * x) / 10);
   }
 
   abstract float distort(float x) const;
@@ -60,7 +61,7 @@ class AnalogDistortionV1 : BaseDistortion {
  public:
   nothrow @nogc @safe pure
   override float distort(float x) const {
-    return powi(x, 6);
+    return fabs(tanh(x)) * 2f - 1f;
   }
 }
 
@@ -100,7 +101,7 @@ class Resampler : IEffect {
   override float apply(float x) {
     if (_frame == 0) {
       // Consider better coding, e.g., mu-low?
-      _qx = cast(int) (x * _nbit) * _nbit;
+      _qx = floor(x * _nbit) / _nbit;
     }
     _frame = (_frame + 1) % _resampleFrames;
     return _qx;
@@ -112,7 +113,7 @@ class Resampler : IEffect {
   int _resampleFrames;
   int _nbit;
   // states
-  int _qx;
+  float _qx;
   int _frame;
 }
 
@@ -125,7 +126,7 @@ class RingMod : IEffect {
   }
 
   pure override void setParams(float ctrl1, float ctrl2) {
-    _wave.freq = ctrl1 * _wave.sampleRate / 2;
+    _wave.freq = log2(ctrl1 + 1) * _wave.sampleRate / 10;
   }
 
   override float apply(float x) @system {
@@ -142,33 +143,30 @@ class Compressor : IEffect {
   nothrow @nogc @safe pure:
 
   override void setSampleRate(float sampleRate) {
-    _sampleRate = sampleRate;
+    _avg = 0;
   }
 
   override void setParams(float ctrl1, float ctrl2) {
-    _threshold = ctrl1;  // convert to db?
-    _attackFrames = cast(int) (ctrl2 * _sampleRate); // 0 .. 1 sec
+    _threshold = ctrl1; // convertLinearGainToDecibel(ctrl1);
+    _attack = ctrl2;
   }
 
   override float apply(float x) {
-    if (_threshold < x) {
-      ++_frame;
-    }
-    else {
-      _frame = 0;
-    }
-    if (_attackFrames < _frame) {
-      return _threshold + (x - _threshold) / _ratio;
+    const absx = fabs(x); // convertLinearGainToDecibel(fabs(x));
+    _avg = (1 - _attack) * absx + _attack * _avg;
+    if (_threshold < _avg && _threshold < absx) {
+      return sgn(x) * // convertDecibelToLinearGain
+          (_threshold + (absx - _threshold) / _ratio);
     }
     return x;
   }
 
  private:
+  float _avg;
   float _threshold;
   float _sampleRate;
   float _ratio = 5;
-  int _attackFrames;
-  int _frame;
+  float _attack;
 }
 
 /// Phase effect.
@@ -249,7 +247,6 @@ class MultiEffect : IEffect {
 
   override void setSampleRate(float sampleRate) {
     foreach (IEffect e; _effects) {
-      if (e is null) continue;
       e.setSampleRate(sampleRate);
     }
   }

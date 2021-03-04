@@ -38,7 +38,7 @@ struct WaveformRange {
   float front() const {
     final switch (this.waveform) {
       case Waveform.saw:
-        return 1.0 - this.phase / (2 * PI);
+        return 1.0 - this.phase / PI;
       case Waveform.sine:
         return sin(this.phase);
       case Waveform.pulse:
