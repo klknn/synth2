@@ -62,17 +62,15 @@ public:
     auto synth2 = addLabel("Synth2");
     synth2.textSize(fontLarge);
     synth2.position(rectangle(0, y, 80, fontLarge));
-    // auto url = addLabel("https://github.com/klknn/synth2");
-    // url.targetURL = "https://github.com/klknn/synth2";
-    // url.clickable = true;
-    // url.textSize(fontSmall);
-    // url.position(rectangle(screenWidth * 2 / 3,
-    //                              screenHeight - fontMedium, 150, fontMedium));
+
+    _tempo = addLabel("BPM000.0");
+    _tempo.textSize(fontMedium);
+    _tempo.position(rectangle(synth2.position.max.x + marginW, synth2.position.min.y,
+                              80, fontMedium));
+
     auto date = addLabel("v0.00 " ~ __DATE__);
     date.position(rectangle(screenWidth - 100, y, 100, fontMedium));
     date.textSize(fontMedium);
-
-
 
     static immutable waveNames = ["sin", "saw", "pls", "tri", "rnd"];
 
@@ -432,7 +430,22 @@ public:
         rectangle(effectKind.position.max.x + effectKind.position.width + marginW,
                   effectCtrl2.position.max.y + fontMedium + marginH, knobRad, knobRad),
         "mix");
+  }  // this()
+
+  ~this()
+  {
+    _font.destroyFree();
   }
+
+  char[10] _tempoStr;
+
+  void setTempo(double tempo) {
+    import core.stdc.stdio : snprintf;
+    snprintf(_tempoStr.ptr, _tempoStr.length, "BPM%3.1lf", tempo);
+    _tempo.text(cast(string) _tempoStr[]);
+  }
+
+private:
 
   UIKnob addKnob(FloatParameter p, box2i pos, string label) {
     UIKnob knob = mallocNew!UIKnob(this.context, p);
@@ -518,11 +531,6 @@ public:
   enum unlitTrailDiffuse = RGBA(81, 54, 108, 0);
   enum fontColor = RGBA(0, 0, 0, 0);
 
-  ~this()
-  {
-    _font.destroyFree();
-  }
-
   UILabel addLabel(string text) {
     UILabel label;
     addChild(label = mallocNew!UILabel(context(), _font, text));
@@ -530,6 +538,6 @@ public:
     return label;
   }
 
-private:
   Font _font;
+  UILabel _tempo;
 }

@@ -7,7 +7,7 @@
 module synth2.modfilter;
 
 import dplug.client.midi;
-import mir.math.common : fmin, fastmath;
+import mir.math.common : fmin, fmax, fastmath;
 
 import synth2.envelope;
 import synth2.filter;
@@ -34,11 +34,16 @@ struct ModFilter {
   void setSampleRate(float sampleRate) {
     this.filter.setSampleRate(sampleRate);
     this.envelope.setSampleRate(sampleRate);
+    this.cutoffDiff = 0;
+  }
+
+  void setCutoffDiff(float diff) {
+    this.cutoffDiff = diff;
   }
 
   void popFront() {
-    const cutoff = fmin(1f, this.cutoff + this.track +
-                        this.velocity * this.envelope.front);
+    const cutoff = fmax(0f, fmin(1f, this.cutoff + this.cutoffDiff + this.track +
+                                 this.velocity * this.envelope.front));
     this.filter.setParams(this.kind, cutoff, this.q);
     this.envelope.popFront();
   }
@@ -55,8 +60,9 @@ struct ModFilter {
  private:
   // filter states
   float cutoff = 0;
+  float cutoffDiff = 0;
   float q = 0;
   FilterKind kind;
   float velocity = 1;
-  float track = 1;
+  float track = 0;
 }

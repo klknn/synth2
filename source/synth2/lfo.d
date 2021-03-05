@@ -7,6 +7,7 @@
 module synth2.lfo;
 
 import std.algorithm.comparison : min;
+import std.math : approxEqual;
 import std.traits : EnumMembers;
 
 import dplug.client.client : TimeInfo;
@@ -31,10 +32,14 @@ enum Bar {
 
 /// Bar multiplier.
 enum Multiplier {
-  none = 1f,
-  dot = 1.5f,
-  tri = 1f / 3,
+  none,
+  dot,
+  tri,
 }
+
+static immutable multiplierNames = [__traits(allMembers, Multiplier)];
+static immutable float[multiplierNames.length] mulToFloat = [
+    Multiplier.none: 1f, Multiplier.dot: 1.5f, Multiplier.tri: 1f / 3 ];
 
 struct Interval {
   Bar bar;
@@ -43,10 +48,17 @@ struct Interval {
   @nogc nothrow pure @safe:
 
   float toFloat() const {
-    return bar * mul;
+    return bar * mulToFloat[mul];
   }
 
   alias toFloat this;
+}
+
+@nogc nothrow pure @safe
+unittest {
+  assert(Interval(Bar.x1_8, Multiplier.none).toFloat == 1f / 8);
+  assert(Interval(Bar.x1_8, Multiplier.dot).toFloat == 1f / 8 * 1.5);
+  assert(approxEqual(Interval(Bar.x1_8, Multiplier.tri).toFloat, 1f / 8 / 3));
 }
 
 @nogc nothrow pure @safe
@@ -65,9 +77,9 @@ unittest {
 
 /// Low freq osc.
 struct LFO {
-  @nogc nothrow pure @safe:
+  @nogc nothrow @safe:
 
-  void setSampleRate(float sampleRate) {
+  void setSampleRate(float sampleRate) pure {
     _wave.sampleRate = sampleRate;
     _nplay = 0;
   }
@@ -80,10 +92,11 @@ struct LFO {
   ///   mult = duration multiplier for sync.
   ///   tinfo = info on bpm etc.
   void setParams(Waveform waveform, bool sync, float normalizedSpeed,
-                 Multiplier mult, TimeInfo tinfo) {
+                 Multiplier mult, TimeInfo tinfo) pure {
     _wave.waveform = waveform;
     if (sync) {
-      _wave.freq = _wave.sampleRate / Interval(normalizedSpeed.toBar, mult);
+      // BPM / 60sec (beat per sec) * 4 (bar per sec) / bar-length-scale
+      _wave.freq = cast(float) tinfo.tempo / 60 * 4 / Interval(normalizedSpeed.toBar, mult);
     }
     else {
       _wave.freq = normalizedSpeed * 10;
@@ -93,7 +106,7 @@ struct LFO {
     }
   }
 
-  void setMidi(MidiMessage midi) @system {
+  void setMidi(MidiMessage midi) pure @system {
     if (midi.isNoteOn) {
       if (_nplay == 0) {
         _wave.phase = 0;
@@ -105,8 +118,8 @@ struct LFO {
     }
   }
 
-  alias front = _wave.front;
-  alias popFront = _wave.popFront;
+  float front() const { return _wave.front; }
+  void popFront() pure { _wave.popFront(); }
   alias empty = _wave.empty;
 
  private:

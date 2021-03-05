@@ -18,6 +18,7 @@ import mir.math.constant : PI;
 import synth2.effect : EffectKind, effectNames;
 import synth2.waveform : Waveform, waveformNames;
 import synth2.filter : filterNames, FilterKind;
+import synth2.lfo : Multiplier, multiplierNames;
 
 /// Parameter ids.
 enum Params : int {
@@ -71,13 +72,22 @@ enum Params : int {
   menvAmount,
 
   /// LFO1
-  // lfo1Wave,
-  // lfo1Dest,
-  // lfo1Speed,
-  // lfo1Amount,
-  // lfo1Key,
+  lfo1Wave,
+  lfo1Dest,
+  lfo1Sync,
+  lfo1Speed,
+  lfo1Mul,
+  lfo1Amount,
+  lfo1Trigger,
 
   /// LFO2
+  lfo2Wave,
+  lfo2Dest,
+  lfo2Sync,
+  lfo2Speed,
+  lfo2Mul,
+  lfo2Amount,
+  lfo2Trigger,
 
   /// Effect
   effectKind,
@@ -101,11 +111,14 @@ static immutable menvDestNames = [__traits(allMembers, MEnvDest)];
 enum LfoDest {
   osc2,
   osc12,
-  amo,
+  filter,
+  amp,
   pw,
   fm,
   pan,
 }
+
+static immutable lfoDestNames = [__traits(allMembers, LfoDest)];
 
 /// Setup default parameter.
 struct ParamBuilder {
@@ -320,6 +333,72 @@ struct ParamBuilder {
   static effectMix() {
     return mallocNew!LinearFloatParameter(
         Params.effectMix, "Effect/Mix", "", 0, 1, 0);
+  }
+
+  static lfo1Wave() {
+    return mallocNew!EnumParameter(
+        Params.lfo1Wave, "LFO1/Wave", waveformNames, Waveform.triangle);
+  }
+
+  static lfo1Dest() {
+    return mallocNew!EnumParameter(
+        Params.lfo1Dest, "LFO1/Dest", lfoDestNames, LfoDest.osc12);
+  }
+
+  static lfo1Sync() {
+    return mallocNew!BoolParameter(Params.lfo1Sync, "LFO1/Sync", true);
+  }
+
+  static lfo1Speed() {
+    return mallocNew!LinearFloatParameter(
+        Params.lfo1Speed, "LFO1/Speed", "", 0, 1, 0.5);
+  }
+
+  static lfo1Mul() {
+    return mallocNew!EnumParameter(
+        Params.lfo1Mul, "LFO1/Mul", multiplierNames, Multiplier.none);
+  }
+
+  static lfo1Amount() {
+    return mallocNew!LinearFloatParameter(
+        Params.lfo1Amount, "LFO1/Amount", "", 0, 1, 0);
+  }
+
+  static lfo1Trigger() {
+    return mallocNew!BoolParameter(Params.lfo1Trigger, "LFO1/trigger", false);
+  }
+
+  static lfo2Wave() {
+    return mallocNew!EnumParameter(
+        Params.lfo2Wave, "LFO2/Wave", waveformNames, Waveform.triangle);
+  }
+
+  static lfo2Dest() {
+    return mallocNew!EnumParameter(
+        Params.lfo2Dest, "LFO2/Dest", lfoDestNames, LfoDest.osc12);
+  }
+
+  static lfo2Sync() {
+    return mallocNew!BoolParameter(Params.lfo2Sync, "LFO2/Sync", true);
+  }
+
+  static lfo2Speed() {
+    return mallocNew!LinearFloatParameter(
+        Params.lfo2Speed, "LFO2/Speed", "", 0, 1, 0.5);
+  }
+
+  static lfo2Mul() {
+    return mallocNew!EnumParameter(
+        Params.lfo2Mul, "LFO2/Mul", multiplierNames, Multiplier.none);
+  }
+
+  static lfo2Amount() {
+    return mallocNew!LinearFloatParameter(
+        Params.lfo2Amount, "LFO2/Amount", "", 0, 1, 0);
+  }
+
+  static lfo2Trigger() {
+    return mallocNew!BoolParameter(Params.lfo2Trigger, "LFO2/trigger", false);
   }
 
   @nogc nothrow:

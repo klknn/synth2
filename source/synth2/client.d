@@ -24,10 +24,11 @@ import synth2.effect : EffectKind, MultiEffect, effectNames;
 import synth2.envelope : ADSR;
 import synth2.filter : FilterKind, filterNames;
 import synth2.modfilter : ModFilter;
+import synth2.lfo : LFO, Multiplier, multiplierNames;
 version (unittest) {} else import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator;
 import synth2.waveform : Waveform, waveformNames;
-import synth2.params : Params, ParamBuilder, paramNames, MEnvDest, menvDestNames;
+import synth2.params : Params, ParamBuilder, paramNames, MEnvDest, menvDestNames, LfoDest, lfoDestNames;
 
 version (unittest) {} else {
 // This define entry points for plugin formats,
@@ -39,6 +40,8 @@ mixin(pluginEntryPoints!Synth2Client);
 class Synth2Client : Client {
  public:
   nothrow @nogc @fastmath:
+
+  enum nLFO = 2;
 
   this() {
     super();
@@ -95,11 +98,39 @@ class Synth2Client : Client {
 
   override void processAudio(const(float*)[] inputs, float*[] outputs,
                              int frames, TimeInfo info) {
-    // TODO: use info.timeInSamples to set the RNG status.
+    version (unittest) {} else if (_gui) {
+      _gui.setTempo(info.tempo);
+    }
 
     const ampGain = exp2(readParam!float(Params.ampGain));
     if (ampGain == 0) return;  // no output
 
+    // Setup LFOs.
+    LfoDest[nLFO] lfoDests;
+    float[nLFO] lfoAmounts;
+    bool[nLFO] lfoTriggers;
+    lfoAmounts[0] = readParam!float(Params.lfo1Amount);
+    if (lfoAmounts[0] > 0) {
+      lfoDests[0] = readParam!LfoDest(Params.lfo1Dest);
+      _lfos[0].setParams(
+          readParam!Waveform(Params.lfo1Wave),
+          readParam!bool(Params.lfo1Sync),
+          readParam!float(Params.lfo1Speed),
+          readParam!Multiplier(Params.lfo1Mul), info);
+      lfoTriggers[0] = readParam!bool(Params.lfo1Trigger);
+    }
+    lfoAmounts[1] = readParam!float(Params.lfo2Amount);
+    if (lfoAmounts[1] > 0) {
+      lfoDests[1] = readParam!LfoDest(Params.lfo2Dest);
+      _lfos[1].setParams(
+          readParam!Waveform(Params.lfo2Wave),
+          readParam!bool(Params.lfo2Sync),
+          readParam!float(Params.lfo2Speed),
+          readParam!Multiplier(Params.lfo2Mul), info);
+      lfoTriggers[1] = readParam!bool(Params.lfo2Trigger);
+    }
+
+    // Setup OSCs.
     const oscMix = readParam!float(Params.oscMix);
     const sync = readParam!bool(Params.osc2Sync);
     const ring = readParam!bool(Params.osc2Ring);
@@ -122,13 +153,18 @@ class Synth2Client : Client {
     const useOsc1 = oscMix != 1 || sync || ring || fm > 0;
     const osc1Det = readParam!float(Params.osc1Det);
     const useOsc1Det = osc1Det != 0;
+    const useOsc2 = oscMix != 0 || sync || ring || fm > 0;
+    const oscSubVol = exp2(readParam!float(Params.oscSubVol));
+    const useOscSub = oscSubVol != 0;
+
+    const osc1NoteDiff = oscKeyShift + oscTune;
     if (useOsc1) {
       foreach (i, ref _osc1; _osc1s) {
         _osc1.setWaveform(readParam!Waveform(Params.osc1Waveform));
         _osc1.setPulseWidth(pw);
         _osc1.setVelocitySense(vel);
         _osc1.setADSR(attack, decay, sustain, release);
-        _osc1.setNoteDiff(oscKeyShift + oscTune);
+        _osc1.setNoteDiff(osc1NoteDiff);
         if (oscPhase != ParamBuilder.ignoreOscPhase) {
           _osc1.setInitialPhase(oscPhase);
         }
@@ -138,9 +174,8 @@ class Synth2Client : Client {
       }
     }
 
-    const useOsc2 = oscMix != 0 || sync || ring || fm > 0;
     const osc2NoteDiff = oscKeyShift + oscTune + readParam!int(Params.osc2Pitch)
-                         + readParam!float(Params.osc2Fine);
+          + readParam!float(Params.osc2Fine);
     if (useOsc2) {
       _osc2.setWaveform(readParam!Waveform(Params.osc2Waveform));
       _osc2.setPulseWidth(pw);
@@ -153,8 +188,6 @@ class Synth2Client : Client {
       }
     }
 
-    const oscSubVol = exp2(readParam!float(Params.oscSubVol));
-    const useOscSub = oscSubVol != 0;
     if (oscSubVol != 0) {
       _oscSub.setWaveform(readParam!Waveform(Params.oscSubWaveform));
       _oscSub.setNoteDiff(
@@ -166,6 +199,7 @@ class Synth2Client : Client {
       }
     }
 
+    // Setup filter.
     _filter.useVelocity = readParam!bool(Params.filterUseVelocity);
     _filter.trackAmount = readParam!float(Params.filterTrack);
     _filter.envAmount = readParam!float(Params.filterEnvAmount);
@@ -178,13 +212,10 @@ class Synth2Client : Client {
       _filter.envelope.releaseTime =
           readParam!float(Params.filterRelease) - ParamBuilder.logBias;
     }
-
     _filter.setParams(
         readParam!FilterKind(Params.filterKind),
         readParam!float(Params.filterCutoff),
-        readParam!float(Params.filterQ),
-    );
-
+        readParam!float(Params.filterQ));
     const saturation = readParam!float(Params.saturation);
     const satNorm = tanh(saturation);
 
@@ -200,7 +231,11 @@ class Synth2Client : Client {
       if (useOscSub) _oscSub.setMidi(msg);
       _filter.setMidi(msg);
       _menv.setMidi(msg);
+      foreach (i; 0 .. nLFO) {
+        if (lfoTriggers[i]) _lfos[i].setMidi(msg);
+      }
     }
+
     if (useOsc1) {
       foreach (ref o; _osc1s) {
         o.updateFreq();
@@ -225,17 +260,44 @@ class Synth2Client : Client {
     foreach (frame; 0 .. frames) {
       float menvVal = menvAmount * _menv.front;
       _menv.popFront();
+      float[nLFO] lfoVals;
+      foreach (i; 0 .. nLFO) {
+        lfoVals[i] = lfoAmounts[i] * _lfos[i].front();
+        _lfos[i].popFront();
+      }
+
+      // modulation
+      float modPW = pw;
+      float modFM = fm;
+      float modOsc1NoteDiff = osc1NoteDiff;
+      float modOsc2NoteDiff = osc2NoteDiff;
+      float modAmp = ampGain;
+      float modPan = 0;
+      float modCutoff = 0;
+      final switch (menvDest) {
+        case MEnvDest.pw: modPW += menvVal; break;
+        case MEnvDest.fm: modFM += menvVal; break;
+        case MEnvDest.osc2: modOsc2NoteDiff += menvVal; break;
+      }
+      foreach (i; 0 .. nLFO) {
+        final switch (lfoDests[i]) {
+          case LfoDest.pw: modPW += lfoVals[i]; break;
+          case LfoDest.fm: modFM += lfoVals[i]; break;
+          case LfoDest.osc12: modOsc1NoteDiff += lfoVals[i]; goto case LfoDest.osc2;
+          case LfoDest.osc2: modOsc2NoteDiff += lfoVals[i]; break;
+          case LfoDest.amp: modAmp += lfoVals[i]; break;  // maybe *=?
+          case LfoDest.pan: modPan += lfoVals[i]; break;
+          case LfoDest.filter: modCutoff += lfoVals[i]; break;
+        }
+      }
 
       // osc1
       float o1 = 0;
       if (useOsc1) {
         foreach (ref Oscillator o; _osc1s) {
-          if (menvDest == MEnvDest.pw) {
-            o.setPulseWidth(pw + menvVal);
-          }
-          if (doFM) {
-            o.setFM(fm + menvVal, _osc2);
-          }
+          if (modPW != pw) o.setPulseWidth(modPW);
+          if (doFM) o.setFM(modFM, _osc2);
+          if (modOsc1NoteDiff != osc1NoteDiff) o.setNoteDiff(modOsc1NoteDiff);
           o1 += o.front;
           o.popFront();
           if (osc1Det == 0) break;
@@ -245,11 +307,11 @@ class Synth2Client : Client {
 
       // osc2
       if (useOsc2) {
-        if (menvDest == MEnvDest.pw) {
-          _osc2.setPulseWidth(pw + menvVal);
+        if (modPW != pw) {
+          _osc2.setPulseWidth(modPW);
         }
-        if (menvDest == MEnvDest.osc2 && menvAmount != 0) {
-          _osc2.setNoteDiff(osc2NoteDiff + menvVal);
+        if (modOsc2NoteDiff != osc2NoteDiff) {
+          _osc2.setNoteDiff(modOsc2NoteDiff);
           _osc2.updateFreq();
         }
         _osc2.setPulseWidth(pw + menvVal);
@@ -273,20 +335,23 @@ class Synth2Client : Client {
         output = tanh(saturation * output) / satNorm;
       }
 
+      // filter
+      _filter.setCutoffDiff(modCutoff);
       output = _filter.apply(output);
       if (effectMix != 0) {
         output = effectMix * _effect.apply(output) + (1f - effectMix) * output;
       }
-      outputs[0][frame] = ampGain * output;
+      output *= modAmp;
+      // TODO: improve panning algorithm.
+      outputs[0][frame] = (1 + modPan) * output;
+      outputs[1][frame] = (1 - modPan) * output;
       _filter.popFront();
       _menv.popFront();
-    }
-    foreach (chan; 1 .. outputs.length) {
-      outputs[chan][0 .. frames] = outputs[0][0 .. frames];
     }
   }
 
  private:
+  LFO[nLFO] _lfos;
   MultiEffect _effect;
   ModFilter _filter;
   ADSR _menv;
