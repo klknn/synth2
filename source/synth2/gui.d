@@ -35,9 +35,9 @@ static immutable mulNames = {
 }();
     // ["1.5", "1", "0.3"];
 
-enum png1 = "gray600.png"; // "black.png"
-enum png2 = "black600.png";
-enum png3 = "white600.png";
+enum png1 = "gray.png"; // "black.png"
+enum png2 = "black.png";
+enum png3 = "white.png";
 
 
 // https://all-free-download.com/font/download/display_free_tfb_10784.html
@@ -54,10 +54,10 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "")
 public:
   nothrow @nogc:
 
-  enum marginW = 6;
-  enum marginH = 6;
-  enum screenWidth = 490;
-  enum screenHeight = 450;
+  enum marginW = 5;
+  enum marginH = 5;
+  enum screenWidth = 610;
+  enum screenHeight = 310;
 
   enum fontLarge = 16;
   enum fontMedium = 12;
@@ -66,7 +66,7 @@ public:
   enum fontSmallW = cast(int) (fontSmall * 0.8);
 
   enum knobRad = 25;
-  enum slideWidth = 45;
+  enum slideWidth = 40;
   enum slideHeight = 100;
 
   this(Parameter[] parameters)
@@ -81,15 +81,17 @@ public:
     synth2.textSize(fontLarge);
     synth2.position(rectangle(0, y, 80, fontLarge));
 
-    _tempo = addLabel("BPM000.0");
-    _tempo.textSize(fontMedium);
-    _tempo.position(rectangle(synth2.position.max.x + marginW, synth2.position.min.y,
-                              80, fontMedium));
-
     auto date = addLabel("v0.00 " ~ __DATE__);
     const dateWidth = fontMediumW * cast(int) date.text.length;
     date.position(rectangle(screenWidth - dateWidth, y, dateWidth, fontMedium));
     date.textSize(fontMedium);
+
+    _tempo = addLabel("BPM000.0");
+    _tempo.textSize(fontMedium);
+    const tempoWidth = fontMediumW * cast(int) _tempo.text.length;
+    _tempo.position(rectangle(date.position.min.x - tempoWidth,
+                              synth2.position.min.y,
+                              80, fontMedium));
 
     static immutable waveNames = ["sin", "saw", "pls", "tri", "rnd"];
 
@@ -448,9 +450,12 @@ public:
     // LFO1
     auto lfo1Label = this.addLabel("LFO1");
     lfo1Label.textSize(fontMedium);
-    lfo1Label.position(rectangle(osc2lab.position.min.x,
-                                 osc2wave.position.max.y + fontSmall + marginH * 2,
-                                 fontMediumW * 4, fontMedium));
+    lfo1Label.position(rectangle(
+        // osc2lab.position.min.x,
+        menvAmount.position.max.x + marginW,
+        // osc2wave.position.max.y + fontSmall + marginH * 2,
+        menvLabel.position.min.y,
+        fontMediumW * 4, fontMedium));
     auto lfo1Wave = this.addSlider(
         parameters[Params.lfo1Wave],
         rectangle(lfo1Label.position.min.x,  lfo1Label.position.max.y + marginH,
@@ -489,9 +494,12 @@ public:
     // LFO2
     auto lfo2Label = this.addLabel("LFO2");
     lfo2Label.textSize(fontMedium);
-    lfo2Label.position(rectangle(filterKind.position.min.x,
-                                 lfo1Label.position.min.y,
-                                 fontMediumW * 4, fontMedium));
+    lfo2Label.position(rectangle(
+        // filterKind.position.min.x,
+        lfo1Label.position.min.x,
+        // lfo1Label.position.min.y,
+        effectLabel.position.min.y,
+        fontMediumW * 4, fontMedium));
     auto lfo2Wave = this.addSlider(
         parameters[Params.lfo2Wave],
         rectangle(lfo2Label.position.min.x,  lfo2Label.position.max.y + marginH,
