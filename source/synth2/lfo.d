@@ -32,14 +32,14 @@ enum Bar {
 
 /// Bar multiplier.
 enum Multiplier {
-  none,
   dot,
+  none,
   tri,
 }
 
 static immutable multiplierNames = [__traits(allMembers, Multiplier)];
 static immutable float[multiplierNames.length] mulToFloat = [
-    Multiplier.none: 1f, Multiplier.dot: 1.5f, Multiplier.tri: 1f / 3 ];
+    Multiplier.dot: 1.5f, Multiplier.none: 1f, Multiplier.tri: 1f / 3 ];
 
 struct Interval {
   Bar bar;
