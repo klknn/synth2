@@ -20,15 +20,15 @@ import dplug.client.params : Parameter;
 import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn, makeMidiMessageNoteOff;
 import mir.math : exp2, log, sqrt, PI, fastmath;
 
-import synth2.effect : EffectKind, MultiEffect, effectNames;
+import synth2.effect : EffectKind, MultiEffect;
 import synth2.envelope : ADSR;
-import synth2.filter : FilterKind, filterNames;
+import synth2.filter : FilterKind;
 import synth2.modfilter : ModFilter;
-import synth2.lfo : LFO, Multiplier, multiplierNames;
+import synth2.lfo : LFO, Multiplier;
 version (unittest) {} else import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator;
-import synth2.waveform : Waveform, waveformNames;
-import synth2.params : Params, ParamBuilder, paramNames, MEnvDest, menvDestNames, LfoDest, lfoDestNames;
+import synth2.waveform : Waveform;
+import synth2.params : Params, ParamBuilder, paramNames, MEnvDest, LfoDest;
 
 version (unittest) {} else {
 // This define entry points for plugin formats,
@@ -361,7 +361,7 @@ class Synth2Client : Client {
 }
 
 
-/// Host for running one client for testing.
+/// Mock host for testing Synth2Client.
 struct TestHost {
   Synth2Client client;
   int frames = 8;
@@ -375,21 +375,10 @@ struct TestHost {
   /// Sets param to test.
   void setParam(Params pid, T)(T val) {
     auto p = __traits(getMember, ParamBuilder, paramNames[pid]);
-    static if (is(T == Waveform)) {
+    static if (is(T == enum)) {
       double v;
-      assert(p.normalizedValueFromString(waveformNames[val], v));
-    }
-    else static if (is(T == EffectKind)) {
-      double v;
-      assert(p.normalizedValueFromString(effectNames[val], v));
-    }
-    else static if (is(T == FilterKind)) {
-      double v;
-      assert(p.normalizedValueFromString(filterNames[val], v));
-    }
-    else static if (is(T == MEnvDest)) {
-      double v;
-      assert(p.normalizedValueFromString(menvDestNames[val], v));
+      static immutable names = [__traits(allMembers, T)];
+      assert(p.normalizedValueFromString(names[val], v));
     }
     else static if (is(T == bool)) {
       auto v = val ? 1.0 : 0.0;
@@ -425,7 +414,7 @@ struct TestHost {
     }
 
     TimeInfo info;
-    client.processAudio(inputs[], outputs[], frames, info);
+    client.processAudioFromHost(inputs[], outputs[], frames, info);
   }
 
   /// Returns true iff the val changes outputs of processAudio.
