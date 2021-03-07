@@ -94,6 +94,13 @@ enum Params : int {
   effectCtrl1,
   effectCtrl2,
   effectMix,
+
+  // Equalizer / Pan
+  eqFreq,
+  eqLevel,
+  eqQ,
+  eqTone,
+  eqPan,
 }
 
 static immutable paramNames = [__traits(allMembers, Params)];
@@ -398,7 +405,27 @@ struct ParamBuilder {
   }
 
   static lfo2Trigger() {
-    return mallocNew!BoolParameter(Params.lfo2Trigger, "LFO2/trigger", false);
+    return mallocNew!BoolParameter(Params.lfo2Trigger, "LFO2/Trigger", false);
+  }
+
+  static eqFreq() {
+    return mallocNew!LogFloatParameter(Params.eqFreq, "EQ/Freq", "", logBias, 1, 0.5);
+  }
+
+  static eqLevel() {
+    return mallocNew!LinearFloatParameter(Params.eqLevel, "EQ/Level", "", -1, 1, 0);
+  }
+
+  static eqQ() {
+    return mallocNew!LinearFloatParameter(Params.eqQ, "EQ/Q", "", 0, 1, 0);
+  }
+
+  static eqTone() {
+    return mallocNew!LinearFloatParameter(Params.eqTone, "EQ/Tone", "", -1, 1, 0);
+  }
+
+  static eqPan() {
+    return mallocNew!LinearFloatParameter(Params.eqPan, "EQ/Pan", "", -1, 1, 0);
   }
 
   @nogc nothrow:

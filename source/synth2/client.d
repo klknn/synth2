@@ -11,6 +11,7 @@ import std.algorithm.comparison : clamp;
 import std.traits : EnumMembers;
 import std.math : tanh;
 
+import dplug.core.math : convertDecibelToLinearGain;
 import dplug.core.nogc : destroyFree, mallocNew;
 import dplug.core.vec : makeVec, Vec;
 import dplug.client.client : Client, LegalIO, parsePluginInfo, PluginInfo, TimeInfo;
@@ -20,6 +21,7 @@ import dplug.client.params : Parameter;
 import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn, makeMidiMessageNoteOff;
 import mir.math : exp2, log, sqrt, PI, fastmath;
 
+import synth2.equalizer : Equalizer;
 import synth2.effect : EffectKind, MultiEffect;
 import synth2.envelope : ADSR;
 import synth2.filter : FilterKind;
@@ -94,6 +96,7 @@ class Synth2Client : Client {
     this._menv.sustainLevel = 0;
     this._menv.releaseTime = 0;
     this._effect.setSampleRate(sampleRate);
+    this._eq.setSampleRate(sampleRate);
   }
 
   override void processAudio(const(float*)[] inputs, float*[] outputs,
@@ -256,6 +259,12 @@ class Synth2Client : Client {
                         readParam!float(Params.effectCtrl2));
     }
 
+    _eq.setParams(readParam!float(Params.eqLevel),
+                  readParam!float(Params.eqFreq),
+                  readParam!float(Params.eqQ),
+                  readParam!float(Params.eqTone));
+    const eqPan = -readParam!float(Params.eqPan);
+
     // Generate samples.
     foreach (frame; 0 .. frames) {
       float menvVal = menvAmount * _menv.front;
@@ -272,7 +281,7 @@ class Synth2Client : Client {
       float modOsc1NoteDiff = osc1NoteDiff;
       float modOsc2NoteDiff = osc2NoteDiff;
       float modAmp = ampGain;
-      float modPan = 0;
+      float modPan = eqPan;
       float modCutoff = 0;
       final switch (menvDest) {
         case MEnvDest.pw: modPW += menvVal; break;
@@ -341,6 +350,8 @@ class Synth2Client : Client {
       if (effectMix != 0) {
         output = effectMix * _effect.apply(output) + (1f - effectMix) * output;
       }
+      output = _eq.apply(output);
+
       output *= modAmp;
       // TODO: improve panning algorithm.
       outputs[0][frame] = (1 + modPan) * output;
@@ -355,6 +366,7 @@ class Synth2Client : Client {
   MultiEffect _effect;
   ModFilter _filter;
   ADSR _menv;
+  Equalizer _eq;
   Oscillator _osc2, _oscSub;
   Oscillator[8] _osc1s;  // +7 for detune
   version (unittest) {} else Synth2GUI _gui;

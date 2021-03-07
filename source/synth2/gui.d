@@ -155,6 +155,8 @@ public:
         "LFO2", lfo1.min.x, lfo1.max.y + marginH);
 
     auto effect = _buildEffect(lfo1.max.x + marginW, lfo1.min.y);
+
+    auto eq = _buildEQ(effect.min.x, effect.max.y + marginH);
   }
 
   ~this()
@@ -433,6 +435,30 @@ private:
         "mix");
     return expand(effectLabel.position, effectKind,
                   effectCtrl1, effectCtrl2, effectMix);
+  }
+
+  /// Builds the "EQ" section.
+  box2i _buildEQ(int x, int y) {
+    auto label = _addLabel("EQ/Pan");
+    label.textSize(fontMedium);
+    label.position(rectangle(x, y, fontMediumW * cast(int) label.text.length,
+                             fontMedium));
+    auto freq = _buildKnob(
+        typedParam!(Params.eqFreq)(_params),
+        rectangle(x, label.position.max.y + marginH, knobRad, knobRad), "freq");
+    auto level = _buildKnob(
+        typedParam!(Params.eqLevel)(_params),
+        rectangle(x, freq.max.y + marginH, knobRad, knobRad), "gain");
+    auto q = _buildKnob(
+        typedParam!(Params.eqQ)(_params),
+        rectangle(x, level.max.y + marginH, knobRad, knobRad), "Q");
+    auto tone = _buildKnob(
+        typedParam!(Params.eqTone)(_params),
+        rectangle(freq.max.x + marginW, freq.min.y, knobRad, knobRad), "tone");
+    auto pan = _buildKnob(
+        typedParam!(Params.eqPan)(_params),
+        rectangle(tone.min.x, tone.max.y + marginH, knobRad, knobRad), "L-R");
+    return expand(label.position, freq, level, q, tone, pan);
   }
 
   /// Build "LFO" section.

@@ -84,7 +84,7 @@ struct Filter {
       freq += 0.005;  // to prevent self osc.
     }
     else {
-      Q = q + 1 / SQRT2;
+      Q = q * 5 + 1 / SQRT2;
     }
     const T = 1 / sampleRate;
     const w0 = 2 * PI * freq * sampleRate;

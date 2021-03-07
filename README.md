@@ -37,8 +37,8 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
 - [x] GUI
 - [x] LFO
 - [x] Effect
+- [x] Equalizer / Pan
 - [ ] Arpeggiator
-- [ ] Equalizer / Pan
 - [ ] Tempo Delay
 - [ ] Chorus / Flanger
 - [ ] Voice
