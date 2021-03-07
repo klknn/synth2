@@ -6,8 +6,6 @@
 */
 module synth2.gui;
 
-version (unittest) {} else:
-
 import std.algorithm : max;
 
 import dplug.core : mallocNew, destroyFree;
@@ -17,7 +15,7 @@ import dplug.client.params : BoolParameter, FloatParameter, Parameter;
 import dplug.pbrwidgets : PBRBackgroundGUI, UILabel, UIOnOffSwitch, UIKnob, UISlider, KnobStyle, HandleStyle;
 import gfm.math : box2i, rectangle;
 
-import synth2.lfo : multiplierNames, mulToFloat;
+import synth2.lfo : multiplierNames, mulToFloat, Multiplier;
 import synth2.effect : effectNames;
 import synth2.filter : filterNames;
 import synth2.params : typedParam, Params, menvDestNames, lfoDestNames;
@@ -33,7 +31,13 @@ static immutable mulNames = {
   }
   return ret;
 }();
-    // ["1.5", "1", "0.3"];
+
+nothrow @nogc pure @safe
+unittest {
+  assert(mulNames[Multiplier.none] == "1.0");
+  assert(mulNames[Multiplier.dot] == "1.5");
+  assert(mulNames[Multiplier.tri] == "0.3");
+}
 
 enum png1 = "gray.png"; // "black.png"
 enum png2 = "black.png";
@@ -49,6 +53,23 @@ enum png3 = "white.png";
 // https://all-free-download.com/font/download/forced_square_14817.html
 static string _fontRaw = import("FORCED SQUARE.ttf");
 
+/// Expands box to include all positions.
+box2i expand(box2i[] positions...) nothrow @nogc pure @safe {
+  box2i ret = positions[0];
+  foreach (p; positions) {
+    ret = ret.expand(p);
+  }
+  return ret;
+}
+
+nothrow @nogc pure
+unittest {
+  auto a = rectangle(1, 10, 3, 4);
+  auto b = rectangle(100, 2, 3, 4);
+  assert(expand(a, a, b) == box2i(1, 2, 103, 14));
+}
+
+version (unittest) {} else
 class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "")
 {
 public:
@@ -57,7 +78,7 @@ public:
   enum marginW = 5;
   enum marginH = 5;
   enum screenWidth = 610;
-  enum screenHeight = 310;
+  enum screenHeight = 330;
 
   enum fontLarge = 16;
   enum fontMedium = 12;
@@ -67,475 +88,74 @@ public:
 
   enum knobRad = 25;
   enum slideWidth = 40;
-  enum slideHeight = 100;
+  enum slideHeight = 120;
+
+  // v0.0.0
+  enum litTrailDiffuse = RGBA(150, 0, 192, 0);
+  enum unlitTrailDiffuse = RGBA(81, 54, 108, 0);
+  enum fontColor = RGBA(0, 0, 0, 0);
+
+  // enum litTrailDiffuse = RGBA(100, 0, 255, 0);
+  // enum unlitTrailDiffuse = RGBA(81, 54, 108, 0);
+  // enum fontColor = RGBA(100, 0, 255, 0);
+
+  // cyan
+  // enum litTrailDiffuse = RGBA(0, 255, 255, 0);
+  // enum unlitTrailDiffuse = RGBA(0, 127, 127, 0);
+  // enum fontColor = litTrailDiffuse; //; RGBA(0, 0, 0, 0);
+
+  enum litSwitchOn = 100;
+
+  static immutable pitchLabels = ["-12", "-6", "0", "6", "12"];
+  static immutable waveNames = ["sin", "saw", "pls", "tri", "rnd"];
 
   this(Parameter[] parameters)
   {
+    _params = parameters;
     _font = mallocNew!Font(cast(ubyte[])(_fontRaw));
     super(screenWidth, screenHeight);
     int x, y;
 
     // header
     y = marginH;
-    auto synth2 = addLabel("Synth2");
+    auto synth2 = _addLabel("Synth2");
     synth2.textSize(fontLarge);
     synth2.position(rectangle(0, y, 80, fontLarge));
 
-    auto date = addLabel("v0.00 " ~ __DATE__);
+    auto date = _addLabel("v0.00 " ~ __DATE__);
     const dateWidth = fontMediumW * cast(int) date.text.length;
     date.position(rectangle(screenWidth - dateWidth, y, dateWidth, fontMedium));
     date.textSize(fontMedium);
 
-    _tempo = addLabel("BPM000.0");
+    _tempo = _addLabel("BPM000.0");
     _tempo.textSize(fontMedium);
     const tempoWidth = fontMediumW * cast(int) _tempo.text.length;
     _tempo.position(rectangle(date.position.min.x - tempoWidth,
                               synth2.position.min.y,
                               80, fontMedium));
 
-    static immutable waveNames = ["sin", "saw", "pls", "tri", "rnd"];
+    auto osc = _buildOsc(marginW, synth2.position.max.y + marginH);
 
-    // osc1
-    auto osc1lab = this.addLabel("Osc1");
-    osc1lab.textSize(fontMedium);
-    osc1lab.position(rectangle(
-        marginW, // oscLab.position.min.x + marginW,
-        synth2.position.max.y + marginH, // oscLab.position.max.y + marginH,
-        fontMediumW * 4, fontMedium));
-    auto osc1wave = this.addSlider(
-        parameters[Params.osc1Waveform],
-        rectangle(osc1lab.position.min.x, osc1lab.position.max.y + marginH,
-                  slideWidth, slideHeight),
-        "wave",
-        waveNames,
-    );
-    auto osc1det = this.addKnob(
-        cast(FloatParameter) parameters[Params.osc1Det],
-        rectangle(
-            osc1wave.position.max.x + osc1wave.position.width + marginW,
-            osc1wave.position.min.y, knobRad, knobRad),
-        "det");
-    auto osc1fm = this.addKnob(
-          cast(FloatParameter) parameters[Params.osc1FM],
-          rectangle(
-              osc1det.position.min.x,
-              osc1det.position.max.y + fontMedium + marginH,
-              knobRad, knobRad),
-          "fm");
+    auto master = _buildMaster(osc.max.x + marginW, osc.min.y);
 
+    auto menv = _buildModEnv(master.min.x, master.max.y + marginH);
 
-    // oscSub
-    auto oscSublab = this.addLabel("OscSub");
-    oscSublab.textSize(fontMedium);
-    oscSublab.position(rectangle(
-        osc1det.position.max.x,
-        osc1lab.position.min.y,
-        fontMediumW * 6, fontMedium));
-    auto oscSubwave = this.addSlider(
-        parameters[Params.oscSubWaveform],
-        rectangle(
-            oscSublab.position.min.x + marginW, osc1wave.position.min.y,
-            slideWidth, slideHeight),
-        "wave",
-        waveNames,
-    );
-    auto oscSubVol = this.addKnob(
-        cast(FloatParameter) parameters[Params.oscSubVol],
-        rectangle(
-            oscSubwave.position.max.x + oscSubwave.position.width + marginW,
-            oscSubwave.position.min.y,
-            knobRad, knobRad),
-        "vol  ");
-    auto oscSubOct = this.addSwitch(
-        typedParam!(Params.oscSubOct)(parameters),
-        rectangle(oscSubVol.position.min.x,
-                        osc1fm.position.min.y,
-                        knobRad, knobRad),
-        "-1oct"
-    );
+    auto ampEnv = _buildADSR(master.max.x + marginW, osc.min.y, "AmpEnv",
+                             Params.ampAttack);
 
+    auto filterEnv = _buildADSR(ampEnv.min.x, ampEnv.max.y + marginH,
+                                "FilterEnv", Params.filterAttack);
 
-    // osc2
-    auto osc2lab = this.addLabel("Osc2");
-    osc2lab.textSize(fontMedium);
-    osc2lab.position(rectangle(
-        osc1lab.position.min.x,
-        osc1wave.position.max.y + fontMedium + marginH * 2,
-        fontMediumW * 4, fontMedium));
-    auto osc2wave = this.addSlider(
-        parameters[Params.osc2Waveform],
-        rectangle(osc1wave.position.min.x,
-                  osc2lab.position.max.y + marginW,
-                  slideWidth, slideHeight),
-        "wave",
-        waveNames,
-    );
-    auto osc2ring = this.addSwitch(
-        typedParam!(Params.osc2Ring)(parameters),
-        rectangle(osc1det.position.min.x,
-                        osc2wave.position.min.y,
-                        knobRad, knobRad),
-        "ring"
-    );
-    auto osc2sync = this.addSwitch(
-        typedParam!(Params.osc2Sync)(parameters),
-        rectangle(osc2ring.position.min.x,
-                        osc2ring.position.max.y + fontMedium + marginH,
-                        knobRad, knobRad),
-        "sync"
-    );
-    static const pitchLabels = ["-12", "-6", "0", "6", "12"];
-    auto osc2pitch = this.addSlider(
-        parameters[Params.osc2Pitch],
-        rectangle(
-            oscSubwave.position.min.x, osc2ring.position.min.y,
-            slideWidth, slideHeight),
-        "pitch", pitchLabels);
-    auto osc2tune = this.addKnob(
-        cast(FloatParameter) parameters[Params.osc2Fine],
-        rectangle(
-            oscSubVol.position.min.x,
-            osc2ring.position.min.y,
-            knobRad, knobRad),
-        "tune");
-    auto osc2track = this.addSwitch(
-        typedParam!(Params.osc2Track)(parameters),
-        rectangle(osc2tune.position.min.x,
-                        osc2sync.position.min.y,
-                        knobRad, knobRad),
-        "track"
-    );
+    auto filter = _buildFilter(menv.max.x + marginW, menv.min.y);
 
-    // osc misc
-    auto oscMaster = this.addLabel("Master");
-    oscMaster.textSize(fontMedium);
-    oscMaster.position(rectangle(
-        oscSubVol.position.max.x + marginW,
-        oscSublab.position.min.y,
-        fontMediumW * 6, fontMedium));
-    auto oscKeyShift = this.addSlider(
-        parameters[Params.oscKeyShift],
-        rectangle(oscMaster.position.min.x + marginW,
-                        osc1wave.position.min.y,
-                        slideWidth, slideHeight),
-        "shift", pitchLabels);
-    auto oscMasterMix = this.addKnob(
-        typedParam!(Params.oscMix)(parameters),
-        rectangle(
-            oscKeyShift.position.max.x + oscKeyShift.position.width + marginW,
-            osc1det.position.min.y,
-            knobRad, knobRad),
-        "mix",
-    );
-    auto oscMasterPhase = this.addKnob(
-        typedParam!(Params.oscPhase)(parameters),
-        rectangle(oscMasterMix.position.min.x,
-                        osc1fm.position.min.y,
-                        knobRad, knobRad),
-        "phase",
-    );
-    auto oscMasterPW = this.addKnob(
-        typedParam!(Params.oscPulseWidth)(parameters),
-        rectangle(oscMasterMix.position.max.x + marginW,
-                  oscMasterMix.position.min.y,
-                  knobRad, knobRad),
-        "p/w",
-    );
-    auto oscMasterTune = this.addKnob(
-        typedParam!(Params.oscTune)(parameters),
-        rectangle(oscMasterPW.position.min.x,
-                  oscMasterPhase.position.min.y,
-                  knobRad, knobRad),
-        "tune",
-    );
+    auto lfo1 = _buildLFO!(cast(Params) 0)(
+        "LFO1", ampEnv.max.x + marginW, ampEnv.min.y);
 
-    // Amplifier
-    auto ampGain = this.addKnob(
-        typedParam!(Params.ampGain)(parameters),
-        rectangle(oscMasterPhase.position.min.x,
-                        oscMasterPhase.position.max.y + marginH + fontMedium,
-                        knobRad, knobRad),
-        "gain",
-    );
-    auto ampVel = this.addKnob(
-        typedParam!(Params.ampVel)(parameters),
-        rectangle(oscMasterTune.position.min.x,
-                        oscMasterTune.position.max.y + marginH + fontMedium,
-                        knobRad, knobRad),
-        "vel",
-    );
+    auto lfo2 = _buildLFO!(Params.lfo2Dest - Params.lfo1Dest)(
+        "LFO2", lfo1.min.x, lfo1.max.y + marginH);
 
-    auto ampLab = this.addLabel("AmpEnv");
-    ampLab.textSize(fontMedium);
-    ampLab.position(rectangle(
-        oscMasterPW.position.max.x + marginW,
-        osc1lab.position.min.y,
-        fontMediumW * 6, fontMedium));
-    auto ampA = this.addSlider(
-        typedParam!(Params.ampAttack)(parameters),
-        rectangle(ampLab.position.min.x + marginW,
-                        oscMasterPW.position.min.y,
-                        slideWidth, slideHeight),
-        "A", []
-    );
-    auto ampD = this.addSlider(
-        typedParam!(Params.ampDecay)(parameters),
-        rectangle(ampA.position.max.x + marginW,
-                        oscMasterPW.position.min.y,
-                        slideWidth, slideHeight),
-        "D", []
-    );
-    auto ampS = this.addSlider(
-        typedParam!(Params.ampSustain)(parameters),
-        rectangle(ampD.position.max.x + marginW,
-                        oscMasterPW.position.min.y,
-                        slideWidth, slideHeight),
-        "S", []
-    );
-    auto ampR = this.addSlider(
-        typedParam!(Params.ampRelease)(parameters),
-        rectangle(ampS.position.max.x + marginW,
-                        oscMasterPW.position.min.y,
-                        slideWidth, slideHeight),
-        "R", []
-    );
-
-    // Filter
-    auto filterLab = this.addLabel("Filter");
-    filterLab.textSize(fontMedium);
-    filterLab.position(rectangle(
-        oscMaster.position.min.x,
-        osc2lab.position.min.y,
-        fontMediumW * 6, fontMedium));
-    auto filterKind = this.addSlider(
-        parameters[Params.filterKind],
-        rectangle(oscKeyShift.position.min.x, osc2pitch.position.min.y,
-                  slideWidth, slideHeight),
-        "type", filterNames);
-    auto filterCutoff = this.addKnob(
-        typedParam!(Params.filterCutoff)(parameters),
-        rectangle(oscMasterMix.position.min.x,
-                        filterKind.position.min.y,
-                        knobRad, knobRad),
-        "frq");
-    auto filterQ = this.addKnob(
-        typedParam!(Params.filterQ)(parameters),
-        rectangle(oscMasterMix.position.min.x,
-                        osc2track.position.min.y,
-                        knobRad, knobRad),
-        "res");
-    auto saturation = this.addKnob(
-        typedParam!(Params.saturation)(parameters),
-        rectangle(oscMasterMix.position.min.x,
-                        filterQ.position.max.y + fontMedium + marginH,
-                        knobRad, knobRad),
-        "sat");
-    auto filterEnvAmount = this.addKnob(
-        typedParam!(Params.filterEnvAmount)(parameters),
-        rectangle(filterCutoff.position.max.x + marginW,
-                        filterKind.position.min.y,
-                        knobRad, knobRad),
-        "amt");
-    auto filterTrack = this.addKnob(
-        typedParam!(Params.filterTrack)(parameters),
-        rectangle(filterEnvAmount.position.min.x,
-                        filterQ.position.min.y,
-                        knobRad, knobRad),
-        "track");
-    auto filterVel = this.addSwitch(
-        typedParam!(Params.filterUseVelocity)(parameters),
-        rectangle(filterTrack.position.min.x,
-                        filterTrack.position.max.y + fontMedium + marginH,
-                        knobRad, knobRad),
-        "vel"
-    );
-
-    auto filterEnvLab = this.addLabel("FilterEnv");
-    filterEnvLab.textSize(fontMedium);
-    filterEnvLab.position(rectangle(
-        ampLab.position.min.x,
-        filterLab.position.min.y,
-        fontMediumW * 9, fontMedium));
-    auto filterA = this.addSlider(
-        typedParam!(Params.filterAttack)(parameters),
-        rectangle(ampA.position.min.x,
-                        filterCutoff.position.min.y,
-                        slideWidth, slideHeight),
-        "A", []
-    );
-    auto filterD = this.addSlider(
-        typedParam!(Params.filterDecay)(parameters),
-        rectangle(filterA.position.max.x + marginW,
-                        filterCutoff.position.min.y,
-                        slideWidth, slideHeight),
-        "D", []
-    );
-    auto filterS = this.addSlider(
-        typedParam!(Params.filterSustain)(parameters),
-        rectangle(filterD.position.max.x + marginW,
-                        filterCutoff.position.min.y,
-                        slideWidth, slideHeight),
-        "S", []
-    );
-    auto filterR = this.addSlider(
-        typedParam!(Params.filterRelease)(parameters),
-        rectangle(filterS.position.max.x + marginW,
-                        filterCutoff.position.min.y,
-                        slideWidth, slideHeight),
-        "R", []
-    );
-
-    // mod env
-    auto menvLabel = this.addLabel("ModEnv");
-    menvLabel.textSize(fontMedium);
-    menvLabel.position(rectangle(
-        ampR.position.max.x + marginW,
-        osc1lab.position.min.y,
-        fontMediumW * 6, fontMedium));
-    auto menvDest = this.addSlider(
-        parameters[Params.menvDest],
-        rectangle(
-            menvLabel.position.min.x,
-            menvLabel.position.max.y + marginH,
-            slideWidth, slideHeight,
-        ), "dst", menvDestNames);
-    auto menvAmount = this.addKnob(
-        typedParam!(Params.menvAmount)(parameters),
-        rectangle(
-            menvDest.position.max.x + menvDest.position.width + marginW,
-            menvDest.position.min.y,
-            knobRad, knobRad),
-        "amt");
-    auto menvAttack = this.addKnob(
-        typedParam!(Params.menvAttack)(parameters),
-        rectangle(
-            menvAmount.position.min.x,
-            menvAmount.position.max.y + fontSmall + marginH,
-            knobRad, knobRad),
-        "A");
-    auto menvDecay = this.addKnob(
-        typedParam!(Params.menvDecay)(parameters),
-        rectangle(
-            menvAmount.position.min.x,
-            menvAttack.position.max.y + fontSmall + marginH,
-            knobRad, knobRad),
-        "D");
-
-    // effect
-    auto effectLabel = this.addLabel("Effect");
-    effectLabel.textSize = fontMedium;
-    effectLabel.position = rectangle(
-        menvLabel.position.min.x, filterEnvLab.position.min.y,
-        fontMediumW * 6, fontMedium);
-    auto effectKind = this.addSlider(
-        parameters[Params.effectKind],
-        rectangle(effectLabel.position.min.x, filterR.position.min.y, slideWidth, slideHeight),
-        "kind", effectNames);
-    auto effectCtrl1 = this.addKnob(
-        typedParam!(Params.effectCtrl1)(parameters),
-        rectangle(effectKind.position.max.x + effectKind.position.width + marginW,
-                  effectKind.position.min.y, knobRad, knobRad),
-        "ctrl1");
-    auto effectCtrl2 = this.addKnob(
-        typedParam!(Params.effectCtrl2)(parameters),
-        rectangle(effectKind.position.max.x + effectKind.position.width + marginW,
-                  effectCtrl1.position.max.y + fontMedium + marginH, knobRad, knobRad),
-        "ctrl2");
-    auto effectMix = this.addKnob(
-        typedParam!(Params.effectMix)(parameters),
-        rectangle(effectKind.position.max.x + effectKind.position.width + marginW,
-                  effectCtrl2.position.max.y + fontMedium + marginH, knobRad, knobRad),
-        "mix");
-
-    // LFO1
-    auto lfo1Label = this.addLabel("LFO1");
-    lfo1Label.textSize(fontMedium);
-    lfo1Label.position(rectangle(
-        // osc2lab.position.min.x,
-        menvAmount.position.max.x + marginW,
-        // osc2wave.position.max.y + fontSmall + marginH * 2,
-        menvLabel.position.min.y,
-        fontMediumW * 4, fontMedium));
-    auto lfo1Wave = this.addSlider(
-        parameters[Params.lfo1Wave],
-        rectangle(lfo1Label.position.min.x,  lfo1Label.position.max.y + marginH,
-                  slideWidth, slideHeight), "wave", waveNames);
-    auto lfo1Amount = this.addKnob(
-        typedParam!(Params.lfo1Amount)(parameters),
-        rectangle(lfo1Wave.position.max.x + lfo1Wave.position.width + marginW,
-                  lfo1Wave.position.min.y, knobRad, knobRad),
-        "amt");
-    auto lfo1Speed = this.addKnob(
-        typedParam!(Params.lfo1Speed)(parameters),
-        rectangle(lfo1Wave.position.max.x + lfo1Wave.position.width + marginW,
-                  lfo1Amount.position.max.y + fontSmall + marginH, knobRad, knobRad),
-        "spd");
-    auto lfo1Sync = this.addSwitch(
-        typedParam!(Params.lfo1Sync)(parameters),
-        rectangle(lfo1Wave.position.max.x + lfo1Wave.position.width + marginW,
-                  lfo1Speed.position.max.y + fontSmall + marginH, knobRad, knobRad),
-        "sync");
-    auto lfo1Trigger = this.addSwitch(
-        typedParam!(Params.lfo1Trigger)(parameters),
-        rectangle(lfo1Sync.position.max.x + marginW,
-                  lfo1Sync.position.min.y, knobRad, knobRad),
-        "trig");
-    auto lfo1Mul= this.addSlider(
-        parameters[Params.lfo1Mul],
-        rectangle(lfo1Trigger.position.min.x, lfo1Amount.position.min.y,
-                  slideWidth, slideHeight * 2 / 3),
-        "note", mulNames);
-    auto lfo1Dest = this.addSlider(
-        parameters[Params.lfo1Dest],
-        rectangle(lfo1Mul.position.max.x + marginW * 2,
-                  lfo1Mul.position.min.y, slideWidth, slideHeight),
-        "dst", lfoDestNames);
-
-    // LFO2
-    auto lfo2Label = this.addLabel("LFO2");
-    lfo2Label.textSize(fontMedium);
-    lfo2Label.position(rectangle(
-        // filterKind.position.min.x,
-        lfo1Label.position.min.x,
-        // lfo1Label.position.min.y,
-        effectLabel.position.min.y,
-        fontMediumW * 4, fontMedium));
-    auto lfo2Wave = this.addSlider(
-        parameters[Params.lfo2Wave],
-        rectangle(lfo2Label.position.min.x,  lfo2Label.position.max.y + marginH,
-                  slideWidth, slideHeight), "wave", waveNames);
-    auto lfo2Amount = this.addKnob(
-        typedParam!(Params.lfo2Amount)(parameters),
-        rectangle(lfo2Wave.position.max.x + lfo2Wave.position.width + marginW,
-                  lfo2Wave.position.min.y, knobRad, knobRad),
-        "amt");
-    auto lfo2Speed = this.addKnob(
-        typedParam!(Params.lfo2Speed)(parameters),
-        rectangle(lfo2Wave.position.max.x + lfo2Wave.position.width + marginW,
-                  lfo2Amount.position.max.y + fontSmall + marginH, knobRad, knobRad),
-        "spd");
-    auto lfo2Sync = this.addSwitch(
-        typedParam!(Params.lfo2Sync)(parameters),
-        rectangle(lfo2Wave.position.max.x + lfo2Wave.position.width + marginW,
-                  lfo2Speed.position.max.y + fontSmall + marginH, knobRad, knobRad),
-        "sync");
-    auto lfo2Trigger = this.addSwitch(
-        typedParam!(Params.lfo2Trigger)(parameters),
-        rectangle(lfo2Sync.position.max.x + marginW,
-                  lfo2Sync.position.min.y, knobRad, knobRad),
-        "trig");
-    auto lfo2Mul= this.addSlider(
-        parameters[Params.lfo2Mul],
-        rectangle(lfo2Trigger.position.min.x, lfo2Amount.position.min.y,
-                  slideWidth, slideHeight * 2 / 3),
-        "note", mulNames);
-    auto lfo2Dest = this.addSlider(
-        parameters[Params.lfo2Dest],
-        rectangle(lfo2Mul.position.max.x + marginW * 2,
-                  lfo2Mul.position.min.y, slideWidth, slideHeight),
-        "dst", lfoDestNames);
-
-  }  // this()
+    auto effect = _buildEffect(lfo1.max.x + marginW, lfo1.min.y);
+  }
 
   ~this()
   {
@@ -550,16 +170,359 @@ public:
 
 private:
 
-  UIKnob addKnob(FloatParameter p, box2i pos, string label) {
+  /// Builds the Master section.
+  box2i _buildMaster(int x, int y) {
+    auto oscMaster = this._addLabel("Master");
+    oscMaster.textSize(fontMedium);
+    oscMaster.position(rectangle(x, y, fontMediumW * 6, fontMedium));
+    auto oscKeyShift = this._buildSlider(
+        _params[Params.oscKeyShift],
+        rectangle(oscMaster.position.min.x, oscMaster.position.max.y + marginH,
+                  slideWidth, slideHeight),
+        "pitch", pitchLabels);
+    auto oscMasterMix = this._buildKnob(
+        typedParam!(Params.oscMix)(_params),
+        rectangle(oscKeyShift.max.x + marginW, oscKeyShift.min.y,
+                  knobRad, knobRad),
+        "mix",
+    );
+    auto oscMasterPhase = this._buildKnob(
+        typedParam!(Params.oscPhase)(_params),
+        rectangle(oscMasterMix.min.x, oscMasterMix.max.y + marginH, knobRad, knobRad),
+        "phase",
+    );
+    auto oscMasterPW = this._buildKnob(
+        typedParam!(Params.oscPulseWidth)(_params),
+        rectangle(oscMasterMix.max.x + marginW, oscMasterMix.min.y, knobRad, knobRad),
+        "p/w",
+    );
+    auto oscMasterTune = this._buildKnob(
+        typedParam!(Params.oscTune)(_params),
+        rectangle(oscMasterPW.min.x, oscMasterPhase.min.y, knobRad, knobRad),
+        "tune",
+    );
+
+    // Amplifier
+    auto ampGain = this._buildKnob(
+        typedParam!(Params.ampGain)(_params),
+        rectangle(oscMasterPhase.min.x, oscMasterPhase.max.y + marginH,
+                  knobRad, knobRad),
+        "gain",
+    );
+    auto ampVel = this._buildKnob(
+        typedParam!(Params.ampVel)(_params),
+        rectangle(oscMasterTune.min.x, oscMasterTune.max.y + marginH,
+                  knobRad, knobRad),
+        "vel",
+    );
+    return expand(oscMaster.position, oscMasterMix,
+                  oscKeyShift, oscMasterPhase,
+                  oscMasterPW, oscMasterTune,
+                  ampGain, ampVel);
+  }
+
+  /// Builds the Osc section.
+  box2i _buildOsc(int x, int y) {
+    // osc1
+    auto osc1lab = this._addLabel("Osc1");
+    osc1lab.textSize(fontMedium);
+    osc1lab.position(rectangle(x, y, fontMediumW * 4, fontMedium));
+    auto osc1wave = this._buildSlider(
+        _params[Params.osc1Waveform],
+        rectangle(osc1lab.position.min.x, osc1lab.position.max.y + marginH,
+                  slideWidth, slideHeight),
+        "wave",
+        waveNames,
+    );
+    auto osc1det = this._buildKnob(
+        cast(FloatParameter) _params[Params.osc1Det],
+        rectangle(osc1wave.max.x + marginW, osc1wave.min.y, knobRad, knobRad),
+        "det");
+    auto osc1fm = this._buildKnob(
+          cast(FloatParameter) _params[Params.osc1FM],
+          rectangle(osc1det.min.x, osc1det.max.y + fontMedium + marginH,
+                    knobRad, knobRad),
+          "fm");
+
+    // oscSub
+    auto oscSublab = this._addLabel("OscSub");
+    oscSublab.textSize(fontMedium);
+    oscSublab.position(rectangle(
+        osc1det.max.x, osc1lab.position.min.y,
+        fontMediumW * 6, fontMedium));
+    auto oscSubwave = this._buildSlider(
+        _params[Params.oscSubWaveform],
+        rectangle(oscSublab.position.min.x + marginW, osc1wave.min.y,
+                  slideWidth, slideHeight),
+        "wave", waveNames);
+    auto oscSubVol = this._buildKnob(
+        cast(FloatParameter) _params[Params.oscSubVol],
+        rectangle(oscSubwave.max.x + marginW, oscSubwave.min.y, knobRad, knobRad),
+        "vol  ");
+    auto oscSubOct = this._buildSwitch(
+        typedParam!(Params.oscSubOct)(_params),
+        rectangle(oscSubVol.min.x, osc1fm.min.y, knobRad, knobRad),
+        "-1oct"
+    );
+
+    // osc2
+    auto osc2lab = this._addLabel("Osc2");
+    osc2lab.textSize(fontMedium);
+    osc2lab.position(rectangle(osc1lab.position.min.x, osc1wave.max.y + marginH,
+                               fontMediumW * 4, fontMedium));
+    auto osc2wave = this._buildSlider(
+        _params[Params.osc2Waveform],
+        rectangle(osc1wave.min.x, osc2lab.position.max.y + marginW,
+                  slideWidth, slideHeight),
+        "wave",
+        waveNames,
+    );
+    auto osc2ring = this._buildSwitch(
+        typedParam!(Params.osc2Ring)(_params),
+        rectangle(osc1det.min.x, osc2wave.min.y, knobRad, knobRad),
+        "ring"
+    );
+    auto osc2sync = this._buildSwitch(
+        typedParam!(Params.osc2Sync)(_params),
+        rectangle(osc2ring.min.x, osc2ring.max.y + marginH, knobRad, knobRad),
+        "sync"
+    );
+    auto osc2pitch = this._buildSlider(
+        _params[Params.osc2Pitch],
+        rectangle(oscSubwave.min.x, osc2ring.min.y, slideWidth, slideHeight),
+        "pitch", pitchLabels);
+    auto osc2tune = this._buildKnob(
+        cast(FloatParameter) _params[Params.osc2Fine],
+        rectangle(oscSubVol.min.x, osc2ring.min.y, knobRad, knobRad),
+        "tune");
+    auto osc2track = this._buildSwitch(
+        typedParam!(Params.osc2Track)(_params),
+        rectangle(osc2tune.min.x, osc2sync.min.y, knobRad, knobRad),
+        "track"
+    );
+    return expand(osc1lab.position, osc1wave, osc1det, osc1fm,
+                  osc2lab.position, osc2wave, osc2ring, osc2sync,
+                  osc2pitch, osc2tune, osc2track,
+                  oscSublab.position, oscSubwave, oscSubVol, oscSubOct);
+  }
+
+  /// Builds the Filter section.
+  box2i _buildFilter(int x, int y) {
+    auto filterLab = this._addLabel("Filter");
+    filterLab.textSize(fontMedium);
+    filterLab.position(rectangle(x, y, fontMediumW * 6, fontMedium));
+    auto filterKind = this._buildSlider(
+        _params[Params.filterKind],
+        rectangle(x, y + fontMedium + marginH, slideWidth, slideHeight),
+        "type", filterNames);
+    auto filterCutoff = this._buildKnob(
+        typedParam!(Params.filterCutoff)(_params),
+        rectangle(filterKind.max.x + marginW, filterKind.min.y,
+                  knobRad, knobRad),
+        "frq");
+    auto filterQ = this._buildKnob(
+        typedParam!(Params.filterQ)(_params),
+        rectangle(filterCutoff.min.x, filterCutoff.max.y + marginH,
+                  knobRad, knobRad),
+        "res");
+    auto saturation = this._buildKnob(
+        typedParam!(Params.saturation)(_params),
+        rectangle(filterCutoff.min.x, filterQ.max.y + marginH,
+                  knobRad, knobRad),
+        "sat");
+    auto filterEnvAmount = this._buildKnob(
+        typedParam!(Params.filterEnvAmount)(_params),
+        rectangle(filterCutoff.max.x + marginW, filterKind.min.y,
+                  knobRad, knobRad),
+        "amt");
+    auto filterTrack = this._buildKnob(
+        typedParam!(Params.filterTrack)(_params),
+        rectangle(filterEnvAmount.min.x, filterQ.min.y,
+                  knobRad, knobRad),
+        "track");
+    auto filterVel = this._buildSwitch(
+        typedParam!(Params.filterUseVelocity)(_params),
+        rectangle(filterTrack.min.x, filterTrack.max.y + marginH,
+                  knobRad, knobRad),
+        "vel"
+    );
+    return expand(filterLab.position, filterKind, filterCutoff, filterQ,
+                  saturation, filterEnvAmount, filterTrack, filterVel);
+  }
+
+  /// Builds a ADSR section. Assumes params for ADSR are contiguous.
+  box2i _buildADSR(int x, int y, string label, Params attack) {
+    auto EnvLab = this._addLabel(label);
+    EnvLab.textSize(fontMedium);
+    EnvLab.position(rectangle(
+        x, y, fontMediumW * cast(int) label.length, fontMedium));
+    enum height = cast(int) (slideHeight * 2f / 5);
+    auto A = this._buildSlider(
+        _params[attack],
+        rectangle(x, EnvLab.position.max.y + marginH, slideWidth, height),
+        "A", []
+    );
+    auto D = this._buildSlider(
+        _params[attack + 1],
+        rectangle(A.max.x + marginW, A.min.y, slideWidth, height),
+        "D", []
+    );
+    auto S = this._buildSlider(
+        _params[attack + 2],
+        rectangle(D.max.x + marginW, A.min.y, slideWidth, height),
+        "S", []
+    );
+    auto R = this._buildSlider(
+        _params[attack + 3],
+        rectangle(S.max.x + marginW, A.min.y, slideWidth, height),
+        "R", []
+    );
+    return expand(EnvLab.position, A, D, S, R);
+  }
+
+  /// Build "ModEnv" section.
+  box2i _buildModEnv(int x, int y) {
+    auto menvLabel = this._addLabel("ModEnv");
+    menvLabel.textSize(fontMedium);
+    menvLabel.position(rectangle(x, y, fontMediumW * 6, fontMedium));
+    auto menvDest = this._buildSlider(
+        _params[Params.menvDest],
+        rectangle(
+            menvLabel.position.min.x,
+            menvLabel.position.max.y + marginH,
+            slideWidth, slideHeight,
+        ), "dst", menvDestNames);
+    auto menvAmount = this._buildKnob(
+        typedParam!(Params.menvAmount)(_params),
+        rectangle(menvDest.max.x + marginW, menvDest.min.y, knobRad, knobRad),
+        "amt");
+    auto menvAttack = this._buildKnob(
+        typedParam!(Params.menvAttack)(_params),
+        rectangle(menvAmount.min.x, menvAmount.max.y + marginH, knobRad, knobRad),
+        "A");
+    auto menvDecay = this._buildKnob(
+        typedParam!(Params.menvDecay)(_params),
+        rectangle(menvAmount.min.x, menvAttack.max.y + marginH,
+                  knobRad, knobRad),
+        "D");
+    return expand(menvLabel.position, menvDest,
+                  menvAmount, menvAttack, menvDecay);
+  }
+
+  /// Build "Effect" section.
+  box2i _buildEffect(int x, int y) {
+    auto effectLabel = this._addLabel("Effect");
+    effectLabel.textSize = fontMedium;
+    effectLabel.position = rectangle(x, y, fontMediumW * 6, fontMedium);
+    auto effectKind = this._buildSlider(
+        _params[Params.effectKind],
+        rectangle(effectLabel.position.min.x, effectLabel.position.max.y + marginH,
+                  slideWidth, slideHeight),
+        "kind", effectNames);
+    auto effectCtrl1 = this._buildKnob(
+        typedParam!(Params.effectCtrl1)(_params),
+        rectangle(effectKind.max.x + marginW, effectKind.min.y, knobRad, knobRad),
+        "ctrl1");
+    auto effectCtrl2 = this._buildKnob(
+        typedParam!(Params.effectCtrl2)(_params),
+        rectangle(effectCtrl1.min.x, effectCtrl1.max.y + marginH, knobRad, knobRad),
+        "ctrl2");
+    auto effectMix = this._buildKnob(
+        typedParam!(Params.effectMix)(_params),
+        rectangle(effectCtrl2.min.x, effectCtrl2.max.y + marginH, knobRad, knobRad),
+        "mix");
+    return expand(effectLabel.position, effectKind,
+                  effectCtrl1, effectCtrl2, effectMix);
+  }
+
+  /// Build "LFO" section.
+  box2i _buildLFO(Params offset)(string label, int x, int y) {
+    auto lfo1Label = this._addLabel(label);
+    lfo1Label.textSize(fontMedium);
+    lfo1Label.position(rectangle(x, y, fontMediumW * 4, fontMedium));
+    auto lfo1Wave = this._buildSlider(
+        _params[Params.lfo1Wave + offset],
+        rectangle(lfo1Label.position.min.x,  lfo1Label.position.max.y + marginH,
+                  slideWidth, slideHeight), "wave", waveNames);
+    auto lfo1Amount = this._buildKnob(
+        typedParam!(Params.lfo1Amount + offset)(_params),
+        rectangle(lfo1Wave.max.x + marginW, lfo1Wave.min.y, knobRad, knobRad),
+        "amt");
+    auto lfo1Speed = this._buildKnob(
+        typedParam!(Params.lfo1Speed + offset)(_params),
+        rectangle(lfo1Amount.min.x, lfo1Amount.max.y + marginH, knobRad, knobRad),
+        "spd");
+    auto lfo1Sync = this._buildSwitch(
+        typedParam!(Params.lfo1Sync + offset)(_params),
+        rectangle(lfo1Speed.min.x, lfo1Speed.max.y + marginH, knobRad, knobRad),
+        "sync");
+    auto lfo1Trigger = this._buildSwitch(
+        typedParam!(Params.lfo1Trigger + offset)(_params),
+        rectangle(lfo1Sync.max.x + marginW, lfo1Sync.min.y, knobRad, knobRad),
+        "trig");
+    auto lfo1Mul= this._buildSlider(
+        _params[Params.lfo1Mul + offset],
+        rectangle(lfo1Trigger.min.x, lfo1Amount.min.y,
+                  slideWidth, slideHeight / 2),
+        "note", mulNames);
+    auto lfo1Dest = this._buildSlider(
+        _params[Params.lfo1Dest + offset],
+        rectangle(lfo1Mul.max.x + marginW, lfo1Mul.min.y, slideWidth, slideHeight),
+        "dst", lfoDestNames);
+    return expand(lfo1Label.position, lfo1Wave, lfo1Amount,
+                  lfo1Speed, lfo1Sync, lfo1Trigger, lfo1Mul, lfo1Dest);
+  }
+
+  box2i _buildSlider(Parameter p, box2i pos, string label, const string[] vlabels) {
+    UISlider ui = mallocNew!UISlider(this.context, p);
+    pos.width(pos.width / 2);
+    ui.position = pos;
+    ui.trailWidth = 0.5;
+    ui.handleWidthRatio = 0.5;
+    ui.handleHeightRatio = cast(float) fontSmall / pos.height;
+    ui.handleStyle = HandleStyle.shapeBlock;
+    ui.handleMaterial = RGBA(0, 0, 0, 0);  // smooth, metal, shiny, phisycal
+    ui.handleDiffuse = litTrailDiffuse; // RGBA(255, 255, 255, 0);
+    ui.handleDiffuse.a = 20;
+    ui.litTrailDiffuse = litTrailDiffuse;
+    ui.litTrailDiffuseAlt = litTrailDiffuse;
+    ui.unlitTrailDiffuse = unlitTrailDiffuse;
+    this.addChild(ui);
+
+    box2i ret = ui.position;
+    if (vlabels.length > 0) {
+      uint labelHeight = pos.height / cast(uint) vlabels.length;
+      int maxlen = 0;
+      foreach (lab; vlabels) {
+        maxlen = max(maxlen, cast(int) lab.length);
+      }
+      foreach (i, lab; vlabels) {
+        UILabel l = _addLabel(lab);
+        const width = maxlen * fontSmallW;
+        const box = rectangle(
+            pos.max.x - marginW,
+            cast(uint) (pos.min.y + (vlabels.length - i - 1) * labelHeight),
+            width, labelHeight);
+        l.position(box);
+        ret = ret.expand(box);
+        l.textSize(fontSmall);
+      }
+    }
+
+    auto lab = this._addLabel(label);
+    lab.textSize(fontSmall);
+    const width = fontSmallW * cast(int) label.length;
+    lab.position(rectangle(pos.min.x, pos.max.y, max(slideWidth/2, width), fontSmall));
+    return ret.expand(lab.position);
+  }
+
+  box2i _buildKnob(FloatParameter p, box2i pos, string label) {
     UIKnob knob = mallocNew!UIKnob(this.context, p);
     this.addChild(knob);
     knob.position(pos);
-    // knob.knobDiffuse = RGBA(255, 255, 255, 255);
-    knob.knobDiffuse = RGBA(70, 70, 70, 0);
-    knob.style = KnobStyle.ball;
+    knob.knobDiffuse = unlitTrailDiffuse; // RGBA(70, 70, 70, 0);
+    knob.style = KnobStyle.cylinder;
     knob.knobMaterial = RGBA(0, 0, 0, 0);  // smooth, metal, shiny, phisycal
-    // knob.knobDiffuse = RGBA(255, 255, 255, 255);
-
     knob.LEDDepth = 0;
     knob.numLEDs = 0;
     knob.knobRadius = 0.5;
@@ -572,74 +535,32 @@ private:
 
     knob.litTrailDiffuse = litTrailDiffuse;
     knob.unlitTrailDiffuse = unlitTrailDiffuse;
-    auto lab = this.addLabel(label);
+    auto lab = this._addLabel(label);
     lab.textSize(fontSmall);
-    lab.position(rectangle(knob.position.min.x - marginW, knob.position.max.y,
-                                 knob.position.width + marginW * 2, fontSmall));
-    return knob;
+    lab.position(rectangle(knob.position.min.x, knob.position.max.y,
+                           knob.position.width, fontSmall));
+    // fontSmallW * cast(int) label.length, fontSmall));
+    return expand(knob.position, lab.position);
   }
 
-  UIOnOffSwitch addSwitch(BoolParameter p, box2i pos, string label) {
+  box2i _buildSwitch(BoolParameter p, box2i pos, string label) {
     UIOnOffSwitch ui = mallocNew!UIOnOffSwitch(this.context, p);
     ui.position = pos;
     ui.diffuseOn = litTrailDiffuse;
-    ui.diffuseOn.a = 150;
+    ui.diffuseOn.a = litSwitchOn;
     ui.diffuseOff = unlitTrailDiffuse;
     this.addChild(ui);
-    auto lab = this.addLabel(label);
-    lab.textSize(fontSmall);
-    lab.position(rectangle(pos.min.x - pos.width / 2, pos.max.y,
-                                 pos.width * 2, fontSmall));
-    return ui;
-  }
-
-  UISlider addSlider(Parameter p, box2i pos, string label, const string[] vlabels) {
-    UISlider ui = mallocNew!UISlider(this.context, p);
-    pos.width(pos.width / 2);
-    ui.position = pos;
-    ui.trailWidth = 0.5;
-    ui.handleWidthRatio = 0.5;
-    ui.handleHeightRatio = 0.1;
-    ui.handleStyle = HandleStyle.shapeBlock;
-    ui.handleMaterial = RGBA(0, 0, 0, 0);  // smooth, metal, shiny, phisycal
-    ui.handleDiffuse = RGBA(255, 255, 255, 0);
-    ui.litTrailDiffuse = litTrailDiffuse;
-    ui.unlitTrailDiffuse = unlitTrailDiffuse;
-    this.addChild(ui);
-
-    if (vlabels.length > 0) {
-      uint labelHeight = pos.height / cast(uint) vlabels.length;
-      int maxlen = 0;
-      foreach (lab; vlabels) {
-        maxlen = max(maxlen, cast(int) lab.length);
-      }
-      foreach (i, lab; vlabels) {
-        UILabel l = addLabel(lab);
-        const width = maxlen * fontSmallW;
-        l.position(rectangle(
-            pos.min.x + cast(int) (pos.width * 0.8),
-            cast(uint) (pos.min.y + (vlabels.length - i - 1) * labelHeight),
-            width, labelHeight));
-        l.textSize(fontSmall);
-      }
-    }
-
-    auto lab = this.addLabel(label);
+    auto lab = this._addLabel(label);
     lab.textSize(fontSmall);
     const width = fontSmallW * cast(int) label.length;
-    lab.position(rectangle(pos.min.x, pos.max.y, max(slideWidth/2, width), fontSmall));
-    return ui;
+    lab.position(rectangle(pos.min.x, pos.max.y,
+                           width, fontSmall));
+    return expand(ui.position, lab.position);
   }
 
-  enum defaultDiffuse = RGBA(50, 50, 100, 0);
-  // enum litTrailDiffuse = RGBA(151, 119, 255, 100);
-  enum litTrailDiffuse = RGBA(150, 0, 192, 0);
-  enum unlitTrailDiffuse = RGBA(81, 54, 108, 0);
-  enum fontColor = RGBA(0, 0, 0, 0);
-
-  UILabel addLabel(string text) {
+  UILabel _addLabel(string text) {
     UILabel label;
-    addChild(label = mallocNew!UILabel(context(), _font, text));
+    this.addChild(label = mallocNew!UILabel(context(), _font, text));
     label.textColor(fontColor);
     return label;
   }
@@ -647,4 +568,5 @@ private:
   Font _font;
   UILabel _tempo;
   char[10] _tempoStr;
+  Parameter[] _params;
 }

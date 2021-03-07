@@ -35,9 +35,9 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
   - [x] ADSR
   - [x] Saturation
 - [x] GUI
-- [ ] LFO
+- [x] LFO
+- [x] Effect
 - [ ] Arpeggiator
-- [ ] Effect
 - [ ] Equalizer / Pan
 - [ ] Tempo Delay
 - [ ] Chorus / Flanger
