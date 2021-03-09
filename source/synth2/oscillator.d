@@ -14,51 +14,129 @@ import dplug.client.midi : MidiMessage, MidiStatus;
 import mir.math : log2, exp2, fastmath, PI;
 
 import synth2.envelope : ADSR;
-import synth2.waveform : Waveform, waveformNames, WaveformRange;
+import synth2.waveform : Waveform, WaveformRange;
 
 @safe nothrow @nogc:
 
-float convertMIDINoteToFrequency(float note) @fastmath pure
-{
-    return 440.0f * exp2((note - 69.0f) / 12.0f);
-}
+struct VoiceStack {
+  @nogc nothrow @safe:
+  int[128] data;
+  bool[128] on;
+  int idx;
 
+  bool empty() const pure { return idx < 0; }
+
+  void push(int note) pure {
+    if (idx == data.length - 1) return;
+    data[++idx] = note;
+    on[note] = true;
+  }
+
+  int front() const pure {
+    // TODO: assert(!empty);
+    return empty ? data[0] : data[idx];
+  }
+
+  void reset() pure {
+    idx = -1;
+    on[] = false;
+  }
+
+  void popFront() pure {
+    while (!empty) {
+      --idx;
+      if (on[this.front]) return;
+    }
+  }
+}
 
 /// Mono voice status (subosc).
 struct VoiceStatus {
-  int note = -1;
-  private float gain = 1f;
-
-  WaveformRange wave;
-  ADSR envelope;
-
   @nogc nothrow @safe @fastmath:
 
-  pure bool isPlaying() const {
+  bool isPlaying() const pure {
     return !this.envelope.empty;
   }
 
   float front() const {
     if (!this.isPlaying) return 0f;
-    return this.wave.front * this.gain * this.envelope.front;
+    return this.wave.front * this._gain * this.envelope.front;
   }
 
-  pure void popFront() {
+  void popFront() pure {
     this.wave.popFront();
     this.envelope.popFront();
+    if (_legatoFrames < _portamentFrames) ++_legatoFrames;
   }
 
-  pure void setSampleRate(float sampleRate) {
+  void setSampleRate(float sampleRate) pure {
     this.wave.sampleRate = sampleRate;
     this.wave.phase = 0;
     this.envelope.setSampleRate(sampleRate);
+    _legatoFrames = 0;
+    _notePrev = -1;
   }
 
-  pure void play(int note, float gain) {
-    this.gain = gain;
-    this.note = note;
+  void setParams(bool legato, float portament, bool autoPortament) pure {
+    _legato = legato;
+    _portamentFrames = portament * this.wave.sampleRate;
+    _autoPortament = autoPortament;
+  }
+
+  void play(int note, float gain) pure {
+    this._notePrev = (_autoPortament && !this.isPlaying) ? -1 : _stack.front;
+    this._gain = gain;
+    this._legatoFrames = 0;
+    _stack.push(note);
+    if (_legato && this.isPlaying) return;
     this.envelope.attack();
   }
+
+  void stop(int note) pure {
+    if (this.isPlaying) {
+      _stack.on[note] = false;
+      if (_stack.front == note) {
+        _stack.popFront();
+        _legatoFrames = 0;
+        _notePrev = note;
+        if (_legato && !_stack.empty) return;
+        this.envelope.release();
+        _stack.reset();
+      }
+    }
+  }
+
+  float note() const pure {
+    if (!_legato || _legatoFrames >= _portamentFrames
+        || _notePrev == -1) return _stack.front;
+
+    auto diff = (_stack.front - _notePrev) * _legatoFrames / _portamentFrames;
+    return _notePrev + diff;
+  }
+
+ private:
+  float _notePrev = -1;
+  float _gain = 1f;
+
+  bool _legato = false;
+  bool _autoPortament = false;
+  float _portamentFrames = 0;
+  float _legatoFrames = 0;
+
+  WaveformRange wave;
+  ADSR envelope;
+  VoiceStack _stack;
+}
+
+unittest {
+  VoiceStatus v;
+  v._legato = true;
+  v.play(23, 1);
+  assert(v.note == 23);
+  v.play(24, 1);
+  assert(v.note == 24);
+  v.stop(24);
+  assert(v.note == 23);
 }
 
 /// Maps 0 to 127 into Decibel domain with affine transformation.
@@ -87,13 +165,16 @@ float velocityToDB(int velocity, float sensitivity = 1.0, float bias = 1e-1) @fa
   assert(approxEqual(convertDecibelToLinearGain(velocityToDB(0, sens)), g));
 }
 
+float convertMIDINoteToFrequency(float note) @fastmath pure
+{
+    return 440.0f * exp2((note - 69.0f) / 12.0f);
+}
+
 /// Polyphonic oscillator that generates WAV samples by given params and midi.
 struct Oscillator
 {
  public:
   @safe @nogc nothrow @fastmath:
-
-  enum voicesCount = 16;
 
   // Setters
   pure void setInitialPhase(float value) {
@@ -153,16 +234,16 @@ struct Oscillator
   }
 
   pure void synchronize(const ref Oscillator src) {
-    foreach (i; 0 .. voicesCount) {
+    foreach (i, ref v; _voices) {
       if (src._voices[i].wave.normalized) {
-        _voices[i].wave.phase = 0f;
+        v.wave.phase = 0f;
       }
     }
   }
 
   void setFM(float scale, const ref Oscillator mod) {
-    foreach (i; 0 .. voicesCount) {
-      _voices[i].wave.phase += scale * mod._voices[i].front;
+    foreach (i, ref v; _voices) {
+      v.wave.phase += scale * mod._voices[i].front;
     }
   }
 
@@ -183,7 +264,7 @@ struct Oscillator
     foreach (ref v; _voices) {
       sample += v.front;
     }
-    return sample / voicesCount;
+    return sample / _voicesArr.length;
   }
 
   /// Increments phase in _waves.
@@ -213,16 +294,26 @@ struct Oscillator
     return _voices[_lastUsedId].wave;
   }
 
+  void setVoice(int n, bool legato, float portament, bool autoPortament) {
+    assert(n <= _voicesArr.length, "Exceeds allocated voices.");
+    assert(0 <= n, "MaxVoices must be positive.");
+    _maxVoices = n;
+    foreach (ref v; _voices) {
+      v.setParams(legato, portament, autoPortament);
+    }
+  }
+
  private:
 
   // TODO: use optional
   pure int getUnusedVoiceId() const {
-    foreach (i; 0 .. voicesCount) {
-      if (!_voices[i].isPlaying) {
+    foreach (i, ref v; _voices) {
+      if (!v.isPlaying) {
         return cast(int) i;
       }
     }
-    return -1;
+    return cast(int) ((_lastUsedId + 1) % _voices.length);
+    // return -1
   }
 
   pure void markNoteOn(MidiMessage midi) @system {
@@ -246,10 +337,12 @@ struct Oscillator
 
   pure void markNoteOff(int note) {
     foreach (ref v; this._voices) {
-      if (v.isPlaying && v.note == note) {
-        v.envelope.release();
-      }
+      v.stop(note);
     }
+  }
+
+  inout(VoiceStatus)[] _voices() inout pure {
+    return _voicesArr[0 .. _maxVoices];
   }
 
   // voice global config
@@ -261,6 +354,7 @@ struct Oscillator
   float _pitchBend = 0.0;
   float _pitchBendWidth = 2.0;
   size_t _lastUsedId = 0;
+  size_t _maxVoices = _voicesArr.length;
 
-  VoiceStatus[voicesCount] _voices;
+  VoiceStatus[16] _voicesArr;
 }

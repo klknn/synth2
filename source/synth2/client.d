@@ -30,7 +30,7 @@ import synth2.lfo : LFO, Multiplier;
 version (unittest) {} else import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator;
 import synth2.waveform : Waveform;
-import synth2.params : Params, ParamBuilder, paramNames, MEnvDest, LfoDest;
+import synth2.params : Params, ParamBuilder, paramNames, MEnvDest, LfoDest, VoiceKind;
 
 version (unittest) {} else {
 // This define entry points for plugin formats,
@@ -105,6 +105,16 @@ class Synth2Client : Client {
       _gui.setTempo(info.tempo);
     }
 
+    const poly = readParam!int(Params.voicePoly);
+    version (unittest) {} else if (_gui) {
+      _gui.setPoly(poly);
+    }
+    const voiceKind = readParam!VoiceKind(Params.voiceKind);
+    const portament = readParam!float(Params.voicePortament) - ParamBuilder.logBias;
+    const autoPortament = readParam!bool(Params.voicePortamentAuto);
+    const legato = voiceKind == VoiceKind.legato;
+    const maxVoices = voiceKind == VoiceKind.poly ? poly : 1;
+
     const ampGain = exp2(readParam!float(Params.ampGain));
     if (ampGain == 0) return;  // no output
 
@@ -162,7 +172,8 @@ class Synth2Client : Client {
 
     const osc1NoteDiff = oscKeyShift + oscTune;
     if (useOsc1) {
-      foreach (i, ref _osc1; _osc1s) {
+      foreach (i, ref Oscillator _osc1; _osc1s) {
+        _osc1.setVoice(maxVoices, legato, portament, autoPortament);
         _osc1.setWaveform(readParam!Waveform(Params.osc1Waveform));
         _osc1.setPulseWidth(pw);
         _osc1.setVelocitySense(vel);
@@ -180,6 +191,7 @@ class Synth2Client : Client {
     const osc2NoteDiff = oscKeyShift + oscTune + readParam!int(Params.osc2Pitch)
           + readParam!float(Params.osc2Fine);
     if (useOsc2) {
+      _osc2.setVoice(maxVoices, legato, portament, autoPortament);
       _osc2.setWaveform(readParam!Waveform(Params.osc2Waveform));
       _osc2.setPulseWidth(pw);
       _osc2.setNoteTrack(readParam!bool(Params.osc2Track));
@@ -192,6 +204,7 @@ class Synth2Client : Client {
     }
 
     if (oscSubVol != 0) {
+      _oscSub.setVoice(maxVoices, legato, portament, autoPortament);
       _oscSub.setWaveform(readParam!Waveform(Params.oscSubWaveform));
       _oscSub.setNoteDiff(
           oscKeyShift + oscTune + readParam!bool(Params.oscSubOct) ? -12 : 0);

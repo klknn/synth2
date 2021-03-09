@@ -38,10 +38,10 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
 - [x] LFO
 - [x] Effect
 - [x] Equalizer / Pan
+- [x] Voice
 - [ ] Arpeggiator
 - [ ] Tempo Delay
 - [ ] Chorus / Flanger
-- [ ] Voice
 - [ ] Presets
 - [ ] MIDI
   - [x] Pitch bend

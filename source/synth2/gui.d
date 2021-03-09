@@ -18,7 +18,7 @@ import gfm.math : box2i, rectangle;
 import synth2.lfo : multiplierNames, mulToFloat, Multiplier;
 import synth2.effect : effectNames;
 import synth2.filter : filterNames;
-import synth2.params : typedParam, Params, menvDestNames, lfoDestNames;
+import synth2.params : typedParam, Params, menvDestNames, lfoDestNames, voiceKindNames;
 
 // TODO: CTFE formatted names from enum values.
 static immutable mulNames = {
@@ -77,8 +77,8 @@ public:
 
   enum marginW = 5;
   enum marginH = 5;
-  enum screenWidth = 610;
-  enum screenHeight = 330;
+  enum screenWidth = 630;
+  enum screenHeight = 300;
 
   enum fontLarge = 16;
   enum fontMedium = 12;
@@ -88,7 +88,7 @@ public:
 
   enum knobRad = 25;
   enum slideWidth = 40;
-  enum slideHeight = 120;
+  enum slideHeight = 100;
 
   // v0.0.0
   enum litTrailDiffuse = RGBA(150, 0, 192, 0);
@@ -143,20 +143,26 @@ public:
     auto ampEnv = _buildADSR(master.max.x + marginW, osc.min.y, "AmpEnv",
                              Params.ampAttack);
 
-    auto filterEnv = _buildADSR(ampEnv.min.x, ampEnv.max.y + marginH,
+    auto filterEnv = _buildADSR(ampEnv.min.x, ampEnv.max.y,
                                 "FilterEnv", Params.filterAttack);
 
     auto filter = _buildFilter(menv.max.x + marginW, menv.min.y);
 
-    auto lfo1 = _buildLFO!(cast(Params) 0)(
-        "LFO1", ampEnv.max.x + marginW, ampEnv.min.y);
+    // auto lfo1 = _buildLFO!(cast(Params) 0)(
+    //     "LFO1", osc.min.x, osc.max.y + marginH);
+    // auto lfo2 = _buildLFO!(Params.lfo2Dest - Params.lfo1Dest)(
+    //     "LFO2", lfo1.max.x + marginW, lfo1.min.y);
 
+    auto effect = _buildEffect(ampEnv.max.x + marginW, ampEnv.min.y);
+    auto eq = _buildEQ(filter.max.x + marginW, effect.max.y + marginH);
+
+    auto voice = _buildVoice(eq.max.x + marginW, eq.min.y);
     auto lfo2 = _buildLFO!(Params.lfo2Dest - Params.lfo1Dest)(
-        "LFO2", lfo1.min.x, lfo1.max.y + marginH);
-
-    auto effect = _buildEffect(lfo1.max.x + marginW, lfo1.min.y);
-
-    auto eq = _buildEQ(effect.min.x, effect.max.y + marginH);
+        "LFO2", voice.max.x, voice.min.y);
+    auto lfo1 = _buildLFO!(cast(Params) 0)(
+        "LFO1", lfo2.min.x, effect.min.y);
+    // auto effect = _buildEffect(lfo1.max.x + marginW, lfo1.min.y);
+    // auto eq = _buildEQ(effect.min.x, effect.max.y + marginH);
   }
 
   ~this()
@@ -164,13 +170,53 @@ public:
     _font.destroyFree();
   }
 
+  import core.stdc.stdio : snprintf;
+
   void setTempo(double tempo) {
-    import core.stdc.stdio : snprintf;
     snprintf(_tempoStr.ptr, _tempoStr.length, "BPM%3.1lf", tempo);
     _tempo.text(cast(string) _tempoStr[]);
   }
 
+  void setPoly(int poly) {
+    snprintf(_polyStr.ptr, _polyStr.length, "%02d", poly);
+    _poly.text(cast(string) _polyStr[]);
+  }
+
 private:
+
+  auto _param(Params id)() { return typedParam!id(_params); }
+
+  /// Builds the Voice section.
+  box2i _buildVoice(int x, int y) {
+    auto label = _addLabel("Voice");
+    label.textSize(fontMedium);
+    label.position(rectangle(
+        x, y, cast(int) label.text.length * fontMediumW, fontMedium));
+    auto kind = _buildSlider(
+        _params[Params.voiceKind],
+        rectangle(x, label.position.max.y + marginH, slideWidth, slideHeight / 3),
+        "", voiceKindNames);
+    auto poly = _buildSlider(
+        _param!(Params.voicePoly),
+        rectangle(x, kind.max.y + marginH, slideWidth, slideHeight / 3),
+        "", []);
+    _poly = _addLabel("16");
+    _poly.textSize(fontLarge);
+    _poly.position(rectangle(
+        poly.max.x + marginW, poly.min.y + marginH, 2 * fontMediumW, fontLarge));
+    auto polyLabel = _addLabel("poly");
+    polyLabel.textSize(fontSmall);
+    polyLabel.position(rectangle(
+        poly.max.x, poly.min.y + fontLarge + marginH, 4 * fontSmallW, fontSmall));
+    auto port = _buildKnob(
+        typedParam!(Params.voicePortament)(_params),
+        rectangle(x, poly.max.y + marginH, knobRad, knobRad), "port");
+    auto portAuto = _buildSwitch(
+        _param!(Params.voicePortamentAuto),
+        rectangle(port.max.x + marginW, port.min.y, knobRad, knobRad),
+        "auto");
+    return expand(label.position, kind, port, _poly.position);
+  }
 
   /// Builds the Master section.
   box2i _buildMaster(int x, int y) {
@@ -242,7 +288,7 @@ private:
         "det");
     auto osc1fm = this._buildKnob(
           cast(FloatParameter) _params[Params.osc1FM],
-          rectangle(osc1det.min.x, osc1det.max.y + fontMedium + marginH,
+          rectangle(osc1det.min.x, osc1det.max.y + marginH,
                     knobRad, knobRad),
           "fm");
 
@@ -488,8 +534,8 @@ private:
         "trig");
     auto lfo1Mul= this._buildSlider(
         _params[Params.lfo1Mul + offset],
-        rectangle(lfo1Trigger.min.x, lfo1Amount.min.y,
-                  slideWidth, slideHeight / 2),
+        rectangle(lfo1Amount.max.x, lfo1Amount.min.y,
+                  slideWidth, knobRad * 2 + fontSmall + marginH),
         "note", mulNames);
     auto lfo1Dest = this._buildSlider(
         _params[Params.lfo1Dest + offset],
@@ -535,6 +581,9 @@ private:
       }
     }
 
+    if (label == "") {
+      return ret;
+    }
     auto lab = this._addLabel(label);
     lab.textSize(fontSmall);
     const width = fontSmallW * cast(int) label.length;
@@ -594,5 +643,7 @@ private:
   Font _font;
   UILabel _tempo;
   char[10] _tempoStr;
+  UILabel _poly;
+  char[3] _polyStr;
   Parameter[] _params;
 }

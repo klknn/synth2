@@ -10,9 +10,7 @@ import std.traits : EnumMembers;
 
 import dplug.core.nogc : destroyFree, mallocNew;
 import dplug.core.vec : makeVec, Vec;
-import dplug.client.params : BoolParameter, EnumParameter, FloatParameter,
-  GainParameter, IntegerParameter, LinearFloatParameter, LogFloatParameter,
-  Parameter, PowFloatParameter;
+import dplug.client.params : BoolParameter, EnumParameter, GainParameter, IntegerParameter, LinearFloatParameter, LogFloatParameter, Parameter;
 import mir.math.constant : PI;
 
 import synth2.effect : EffectKind, effectNames;
@@ -101,6 +99,12 @@ enum Params : int {
   eqQ,
   eqTone,
   eqPan,
+
+  // Voice
+  voiceKind,
+  voicePoly,
+  voicePortament,
+  voicePortamentAuto,
 }
 
 static immutable paramNames = [__traits(allMembers, Params)];
@@ -126,6 +130,15 @@ enum LfoDest {
 }
 
 static immutable lfoDestNames = [__traits(allMembers, LfoDest)];
+
+/// Voice kind.
+enum VoiceKind {
+  poly,
+  mono,
+  legato,
+}
+
+static immutable voiceKindNames = [__traits(allMembers, VoiceKind)];
 
 /// Setup default parameter.
 struct ParamBuilder {
@@ -427,6 +440,26 @@ struct ParamBuilder {
   static eqPan() {
     return mallocNew!LinearFloatParameter(Params.eqPan, "EQ/Pan", "", -1, 1, 0);
   }
+
+  static voiceKind() {
+    return mallocNew!EnumParameter(
+        Params.voiceKind, "Voice/Kind", voiceKindNames, VoiceKind.poly);
+  }
+
+  static voicePoly() {
+    return mallocNew!IntegerParameter(
+        Params.voicePoly, "Voice/Poly", "voices", 0, 16, 16);
+  }
+
+  static voicePortament() {
+    return mallocNew!LogFloatParameter(
+        Params.voicePortament, "Voice/Port", "sec", logBias, 1, logBias);
+  }
+
+  static voicePortamentAuto() {
+    return mallocNew!BoolParameter(Params.voicePortamentAuto, "Voice/Auto", true);
+  }
+
 
   @nogc nothrow:
   static Parameter[] buildParameters() {
