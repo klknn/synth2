@@ -150,7 +150,11 @@ class Synth2Client : Client {
     const fm = readParam!float(Params.osc1FM);
     const menvDest = readParam!MEnvDest(Params.menvDest);
     const menvAmount = readParam!float(Params.menvAmount);
-    const doFM = !sync && !ring && (fm > 0 || (menvAmount != 0 && menvDest == MEnvDest.fm));
+    bool lfoDoFM = false;
+    foreach (i, dst; lfoDests) {
+      lfoDoFM |= (lfoAmounts[i] > 0 && dst == LfoDest.fm);
+    }
+    const doFM = !sync && !ring && (fm > 0 || (menvAmount != 0 && menvDest == MEnvDest.fm) || lfoDoFM);
 
     const attack = readParam!float(Params.ampAttack) - ParamBuilder.logBias;
     const decay = readParam!float(Params.ampDecay) - ParamBuilder.logBias;
@@ -319,7 +323,10 @@ class Synth2Client : Client {
         foreach (ref Oscillator o; _osc1s) {
           if (modPW != pw) o.setPulseWidth(modPW);
           if (doFM) o.setFM(modFM, _osc2);
-          if (modOsc1NoteDiff != osc1NoteDiff) o.setNoteDiff(modOsc1NoteDiff);
+          if (modOsc1NoteDiff != osc1NoteDiff) {
+            o.setNoteDiff(modOsc1NoteDiff);
+            o.updateFreq();
+          }
           o1 += o.front;
           o.popFront();
           if (osc1Det == 0) break;
@@ -712,4 +719,28 @@ unittest {
     assert(host.paramChangeOutputs!(Params.effectCtrl1)(0.1));
     // assert(host.paramChangeOutputs!(Params.effectCtrl2)(0.1));
   }
+}
+
+/// Test LFO
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  assert(host.paramChangeOutputs!(Params.lfo1Amount)(1));
+
+  host.setParam!(Params.oscMix)(0.5);
+  host.setParam!(Params.osc1Waveform)(Waveform.pulse);
+  host.setParam!(Params.lfo1Amount)(1.0);
+  host.frames = 1000;
+  assert(host.paramChangeOutputs!(Params.lfo1Dest)(LfoDest.amp));
+  foreach (dest; EnumMembers!LfoDest) {
+    host.setParam!(Params.lfo1Dest)(dest);
+    assert(host.paramChangeOutputs!(Params.lfo1Speed)(1));
+    assert(host.paramChangeOutputs!(Params.lfo1Wave)(Waveform.sine));
+    assert(host.paramChangeOutputs!(Params.lfo1Sync)(false));
+    assert(host.paramChangeOutputs!(Params.lfo1Mul)(Multiplier.dot));
+    assert(host.paramChangeOutputs!(Params.lfo1Trigger)(true));
+  }
+
 }
