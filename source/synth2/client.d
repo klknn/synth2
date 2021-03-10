@@ -578,6 +578,7 @@ unittest {
 
   foreach (mix; [0.0, 1.0]) {
     host.setParam!(Params.oscMix)(mix);
+    host.setParam!(Params.oscSubVol)(1.0);
     assert(host.paramChangeOutputs!(Params.oscKeyShift)(12));
     assert(host.paramChangeOutputs!(Params.oscTune)(0.5));
     assert(host.paramChangeOutputs!(Params.oscPhase)(0.5));
@@ -696,6 +697,7 @@ unittest {
 
   host.frames = 1000;
   host.setParam!(Params.oscMix)(0.5);
+  host.setParam!(Params.oscSubVol)(0.5);
   host.setParam!(Params.osc1Waveform)(Waveform.pulse);
   assert(host.paramChangeOutputs!(Params.menvAmount)(1.0));
   host.setParam!(Params.menvAmount)(1.0);
@@ -746,6 +748,7 @@ unittest {
   scope (exit) destroyFree(host.client);
 
   assert(host.paramChangeOutputs!(Params.lfo1Amount)(1));
+  assert(host.paramChangeOutputs!(Params.lfo2Amount)(1));
 
   host.setParam!(Params.oscMix)(0.5);
   host.setParam!(Params.osc1Waveform)(Waveform.pulse);
