@@ -304,30 +304,17 @@ struct Oscillator
   }
 
  private:
-
-  // TODO: use optional
-  pure int getUnusedVoiceId() const {
+  size_t getNewVoiceId() const pure {
     foreach (i, ref v; _voices) {
       if (!v.isPlaying) {
-        return cast(int) i;
+        return i;
       }
     }
-    return cast(int) ((_lastUsedId + 1) % _voices.length);
-    // return -1
+    return (_lastUsedId + 1) % _voices.length;
   }
 
   pure void markNoteOn(MidiMessage midi) @system {
-    const i = this.getUnusedVoiceId();
-    if (i == -1) {
-      /*
-        No voice available
-
-        well, one could override one, but:
-        - always overriding the 1st one is lame
-        - a smart algorithm would make this example more complicated
-      */
-      return;
-    }
+    const i = this.getNewVoiceId();
     const db =  velocityToDB(midi.noteVelocity(), this._velocitySense);
     _voices[i].play(midi.noteNumber(), convertDecibelToLinearGain(db));
     if (this._initialPhase != -PI)

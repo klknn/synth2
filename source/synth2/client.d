@@ -520,6 +520,25 @@ unittest {
   }
 }
 
+/// Test pitch bend.
+@nogc nothrow @system
+unittest {
+  import dplug.client.midi : makeMidiMessagePitchWheel;
+  enum N = 100;
+  float[N] prev;
+  TestHost host = { client: mallocNew!Synth2Client(), frames: N };
+  scope (exit) destroyFree(host.client);
+
+  host.processAudio();
+  prev[] = host.outputFrames[0][];
+
+  host.client.enqueueMIDIFromHost(makeMidiMessagePitchWheel(
+      0, 0, 1));
+  host.processAudio();
+  assert(prev[] != host.outputFrames[0][]);
+}
+
+
 /// Test changing waveforms.
 @nogc nothrow @system
 unittest {
@@ -722,9 +741,9 @@ unittest {
   static immutable kinds = [EnumMembers!EffectKind];
   foreach (EffectKind kind; kinds) {
     // TODO: fix comp
-    if (kind == EffectKind.comp) continue;
+    // if (kind == EffectKind.comp) continue;
     host.setParam!(Params.effectKind)(kind);
-    assert(host.paramChangeOutputs!(Params.effectCtrl1)(0.1));
+    assert(host.paramChangeOutputs!(Params.effectCtrl1)(0.001));
     // assert(host.paramChangeOutputs!(Params.effectCtrl2)(0.1));
   }
 }
