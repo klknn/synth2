@@ -48,22 +48,22 @@ struct VoiceStatus {
   @nogc nothrow @safe @fastmath:
 
   bool isPlaying() const pure {
-    return !this.envelope.empty;
+    return !_envelope.empty;
   }
 
   float front() const {
     if (!this.isPlaying) return 0f;
-    return this._gain * this.envelope.front;
+    return _gain * _envelope.front;
   }
 
   void popFront() pure {
-    this.envelope.popFront();
+    _envelope.popFront();
     if (_legatoFrames < _portamentFrames) ++_legatoFrames;
   }
 
   void setSampleRate(float sampleRate) pure {
     _sampleRate = sampleRate;
-    this.envelope.setSampleRate(sampleRate);
+    _envelope.setSampleRate(sampleRate);
     _legatoFrames = 0;
     _notePrev = -1;
   }
@@ -75,12 +75,12 @@ struct VoiceStatus {
   }
 
   void play(int note, float gain) pure {
-    this._notePrev = (_autoPortament && !this.isPlaying) ? -1 : _stack.front;
-    this._gain = gain;
-    this._legatoFrames = 0;
+    _notePrev = (_autoPortament && !this.isPlaying) ? -1 : _stack.front;
+    _gain = gain;
+    _legatoFrames = 0;
     _stack.push(note);
     if (_legato && this.isPlaying) return;
-    this.envelope.attack();
+    _envelope.attack();
   }
 
   void stop(int note) pure {
@@ -91,7 +91,7 @@ struct VoiceStatus {
         _legatoFrames = 0;
         _notePrev = note;
         if (_legato && !_stack.empty) return;
-        this.envelope.release();
+        _envelope.release();
         _stack.reset();
       }
     }
@@ -106,10 +106,10 @@ struct VoiceStatus {
   }
 
   void setADSR(float a, float d, float s, float r) pure {
-    envelope.attackTime = a;
-    envelope.decayTime = d;
-    envelope.sustainLevel = s;
-    envelope.releaseTime = r;
+    _envelope.attackTime = a;
+    _envelope.decayTime = d;
+    _envelope.sustainLevel = s;
+    _envelope.releaseTime = r;
   }
 
  private:
@@ -122,11 +122,12 @@ struct VoiceStatus {
   float _portamentFrames = 0;
   float _legatoFrames = 0;
 
-  ADSR envelope;
+  ADSR _envelope;
   VoiceStack _stack;
 }
 
 /// Test stacked previous notes used in legato.
+@nogc nothrow @safe pure
 unittest {
   VoiceStatus v;
   v._legato = true;

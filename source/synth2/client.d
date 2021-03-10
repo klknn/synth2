@@ -86,17 +86,17 @@ class Synth2Client : Client {
 
   override void reset(double sampleRate, int maxFrames,
                       int numInputs, int numOutputs) {
-    foreach (ref o; this._osc1s) {
+    foreach (ref o; _osc1s) {
       o.setSampleRate(sampleRate);
     }
-    this._osc2.setSampleRate(sampleRate);
-    this._oscSub.setSampleRate(sampleRate);
-    this._filter.setSampleRate(sampleRate);
-    this._menv.setSampleRate(sampleRate);
-    this._menv.sustainLevel = 0;
-    this._menv.releaseTime = 0;
-    this._effect.setSampleRate(sampleRate);
-    this._eq.setSampleRate(sampleRate);
+    _osc2.setSampleRate(sampleRate);
+    _oscSub.setSampleRate(sampleRate);
+    _filter.setSampleRate(sampleRate);
+    _menv.setSampleRate(sampleRate);
+    _menv.sustainLevel = 0;
+    _menv.releaseTime = 0;
+    _effect.setSampleRate(sampleRate);
+    _eq.setSampleRate(sampleRate);
     foreach (ref lfo; _lfos) {
       lfo.setSampleRate(sampleRate);
     }

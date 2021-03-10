@@ -31,40 +31,40 @@ struct ADSR {
   @nogc nothrow @safe pure @fastmath:
 
   void attack() {
-    this._stage = Stage.attack;
-    this._stageTime = 0;
+    _stage = Stage.attack;
+    _stageTime = 0;
   }
 
   void release() {
-    this._releaseLevel = this.front;
-    this._stage = Stage.release;
-    this._stageTime = 0;
+    _releaseLevel = this.front;
+    _stage = Stage.release;
+    _stageTime = 0;
   }
 
   void setSampleRate(float sampleRate) {
-    this.frameWidth = 1f / sampleRate;
-    this._stage = Stage.done;
-    this._stageTime = 0;
-    this._nplay = 0;
+    _frameWidth = 1f / sampleRate;
+    _stage = Stage.done;
+    _stageTime = 0;
+    _nplay = 0;
   }
 
-  bool empty() const { return this._stage == Stage.done; }
+  bool empty() const { return _stage == Stage.done; }
 
   /// Returns an amplitude of the linear envelope.
   float front() const {
-    final switch (this._stage) {
+    final switch (_stage) {
       case Stage.attack:
-        return this.attackTime == 0 ? 1 : (this._stageTime / this.attackTime);
+        return this.attackTime == 0 ? 1 : (_stageTime / this.attackTime);
       case Stage.decay:
         return this.decayTime == 0
-            ? 1 : (this._stageTime * (this.sustainLevel -  1f) /  this.decayTime + 1f);
+            ? 1 : (_stageTime * (this.sustainLevel -  1f) /  this.decayTime + 1f);
       case Stage.sustain:
         return this.sustainLevel;
       case Stage.release:
-        assert(!isNaN(this._releaseLevel), "invalid release level.");
+        assert(!isNaN(_releaseLevel), "invalid release level.");
         return this.releaseTime == 0 ? 0f
-            : (-this._stageTime * this._releaseLevel / this.releaseTime
-               + this._releaseLevel);
+            : (-_stageTime * _releaseLevel / this.releaseTime
+               + _releaseLevel);
       case Stage.done:
         return 0f;
     }
@@ -72,28 +72,28 @@ struct ADSR {
 
   /// Update status if the stage is in (attack, decay, release).
   void popFront() {
-    final switch (this._stage) {
+    final switch (_stage) {
       case Stage.attack:
-        this._stageTime += this.frameWidth;
-        if (this._stageTime >= this.attackTime) {
-          this._stage = Stage.decay;
-          this._stageTime = 0;
+        _stageTime += _frameWidth;
+        if (_stageTime >= this.attackTime) {
+          _stage = Stage.decay;
+          _stageTime = 0;
         }
         return;
       case Stage.decay:
-        this._stageTime += this.frameWidth;
-        if (this._stageTime >= this.decayTime) {
-          this._stage = Stage.sustain;
-          this._stageTime = 0;
+        _stageTime += _frameWidth;
+        if (_stageTime >= this.decayTime) {
+          _stage = Stage.sustain;
+          _stageTime = 0;
         }
         return;
       case Stage.sustain:
         return; // do nothing.
       case Stage.release:
-        this._stageTime += this.frameWidth;
-        if (this._stageTime >= this.releaseTime) {
-          this._stage = Stage.done;
-          this._stageTime = 0;
+        _stageTime += _frameWidth;
+        if (_stageTime >= this.releaseTime) {
+          _stage = Stage.done;
+          _stageTime = 0;
         }
         return;
       case Stage.done:
@@ -114,7 +114,7 @@ struct ADSR {
 
  private:
   Stage _stage = Stage.done;
-  float frameWidth = 1.0 / 44100;
+  float _frameWidth = 1.0 / 44100;
   float _stageTime = 0;
   float _releaseLevel;
   int _nplay = 0;
@@ -128,7 +128,7 @@ unittest {
   env.decayTime = 5;
   env.sustainLevel = 0.5;
   env.releaseTime = 20;
-  env.frameWidth = 1;
+  env._frameWidth = 1;
 
   foreach (_; 0 .. 2) {
     env.attack();

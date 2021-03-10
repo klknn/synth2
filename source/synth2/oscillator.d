@@ -55,7 +55,7 @@ struct Oscillator
 
   // Setters
   void setInitialPhase(float value) pure {
-    this._initialPhase = value;
+    _initialPhase = value;
   }
 
   void setWaveform(Waveform value) pure {
@@ -81,7 +81,7 @@ struct Oscillator
   }
 
   void setVelocitySense(float value) pure {
-    this._velocitySense = value;
+    _velocitySense = value;
   }
 
   void setMidi(MidiMessage msg) @system {
@@ -106,11 +106,6 @@ struct Oscillator
 
   void setNoteDetune(float val) pure {
     _noteDiff = val;
-  }
-
-  float note(const ref VoiceStatus v) const pure {
-    return (_noteTrack ? v.note : 69.0f) + _noteDiff + _noteDetune
-        + _pitchBend * _pitchBendWidth;
   }
 
   void synchronize(const ref Oscillator src) pure {
@@ -158,7 +153,7 @@ struct Oscillator
   void updateFreq() pure @system {
     foreach (i, ref v; _voices) {
       if (v.isPlaying) {
-        _waves[i].freq = convertMIDINoteToFrequency(this.note(v));
+        _waves[i].freq = convertMIDINoteToFrequency(_note(v));
       }
     }
   }
@@ -184,7 +179,12 @@ struct Oscillator
   }
 
  private:
-  size_t getNewVoiceId() const pure {
+  float _note(const ref VoiceStatus v) const pure {
+    return (_noteTrack ? v.note : 69.0f) + _noteDiff + _noteDetune
+        + _pitchBend * _pitchBendWidth;
+  }
+
+  size_t _newVoiceId() const pure {
     foreach (i, ref v; _voices) {
       if (!v.isPlaying) {
         return i;
@@ -194,16 +194,16 @@ struct Oscillator
   }
 
   void markNoteOn(MidiMessage midi) pure @system {
-    const i = this.getNewVoiceId();
-    const db =  velocityToDB(midi.noteVelocity(), this._velocitySense);
+    const i = _newVoiceId;
+    const db =  velocityToDB(midi.noteVelocity(), _velocitySense);
     _voices[i].play(midi.noteNumber(), convertDecibelToLinearGain(db));
-    if (this._initialPhase != -PI)
-      _waves[i].phase = this._initialPhase;
+    if (_initialPhase != -PI)
+      _waves[i].phase = _initialPhase;
     _lastUsedId = i;
   }
 
   void markNoteOff(int note) pure {
-    foreach (ref v; this._voices) {
+    foreach (ref v; _voices) {
       v.stop(note);
     }
   }
