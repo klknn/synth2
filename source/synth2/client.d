@@ -742,5 +742,19 @@ unittest {
     assert(host.paramChangeOutputs!(Params.lfo1Mul)(Multiplier.dot));
     assert(host.paramChangeOutputs!(Params.lfo1Trigger)(true));
   }
+}
 
+/// Test voice
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  assert(host.paramChangeOutputs!(Params.voiceKind)(VoiceKind.mono));
+  assert(host.paramChangeOutputs!(Params.voiceKind)(VoiceKind.legato));
+
+  host.frames = 1000;
+  host.setParam!(Params.voiceKind)(VoiceKind.legato);
+  assert(host.paramChangeOutputs!(Params.voicePortament)(1));
+  // TODO: assert(host.paramChangeOutputs!(Params.voicePortamentAuto)(false));
 }
