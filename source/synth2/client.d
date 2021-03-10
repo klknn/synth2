@@ -97,6 +97,9 @@ class Synth2Client : Client {
     this._menv.releaseTime = 0;
     this._effect.setSampleRate(sampleRate);
     this._eq.setSampleRate(sampleRate);
+    foreach (ref lfo; _lfos) {
+      lfo.setSampleRate(sampleRate);
+    }
   }
 
   override void processAudio(const(float*)[] inputs, float*[] outputs,
@@ -401,6 +404,7 @@ struct TestHost {
   MidiMessage msg1 = makeMidiMessageNoteOn(0, 0, 100, 100);
   MidiMessage msg2 = makeMidiMessageNoteOn(1, 0, 90, 10);
   MidiMessage msg3 = makeMidiMessageNoteOff(2, 0, 100);
+  bool noteOff = false;
 
   @nogc nothrow:
 
@@ -428,7 +432,7 @@ struct TestHost {
     client.param(pid).setFromHost(v);
   }
 
-  void processAudio(bool noteOff = false) {
+  void processAudio() {
     outputFrames[0].resize(this.frames);
     outputFrames[1].resize(this.frames);
     client.reset(44100, 32, 0, 2);
@@ -446,6 +450,7 @@ struct TestHost {
     }
 
     TimeInfo info;
+    info.hostIsPlaying = true;
     client.processAudioFromHost(inputs[], outputs[], frames, info);
   }
 
@@ -500,7 +505,8 @@ unittest {
 
   foreach (noteOff; [false, true]) {
     // 1st
-    host.processAudio(noteOff);
+    host.noteOff = noteOff;
+    host.processAudio();
     prev[] = host.outputFrames[0][];
     bool notNaN = true;
     foreach (x; prev) {
@@ -509,7 +515,7 @@ unittest {
     assert(notNaN);
 
     // 2nd
-    host.processAudio(noteOff);
+    host.processAudio();
     assert(prev[] == host.outputFrames[0][]);
   }
 }
@@ -721,6 +727,18 @@ unittest {
   }
 }
 
+/// Test EQ
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  assert(host.paramChangeOutputs!(Params.eqLevel)(-1));
+  assert(host.paramChangeOutputs!(Params.eqPan)(-1));
+  assert(host.paramChangeOutputs!(Params.eqTone)(-1));
+  assert(host.paramChangeOutputs!(Params.eqTone)(1));
+}
+
 /// Test LFO
 @nogc nothrow @system
 unittest {
@@ -733,6 +751,7 @@ unittest {
   host.setParam!(Params.osc1Waveform)(Waveform.pulse);
   host.setParam!(Params.lfo1Amount)(1.0);
   host.frames = 1000;
+  host.noteOff = true;
   assert(host.paramChangeOutputs!(Params.lfo1Dest)(LfoDest.amp));
   foreach (dest; EnumMembers!LfoDest) {
     host.setParam!(Params.lfo1Dest)(dest);
