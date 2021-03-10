@@ -7,135 +7,14 @@ License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
 module synth2.oscillator;
 
-import std.math : isNaN;
-
 import dplug.core.math : convertDecibelToLinearGain;
 import dplug.client.midi : MidiMessage, MidiStatus;
 import mir.math : log2, exp2, fastmath, PI;
 
-import synth2.envelope : ADSR;
 import synth2.waveform : Waveform, WaveformRange;
+import synth2.voice : VoiceStatus;
 
 @safe nothrow @nogc:
-
-struct VoiceStack {
-  @nogc nothrow @safe:
-  int[128] data;
-  bool[128] on;
-  int idx;
-
-  bool empty() const pure { return idx < 0; }
-
-  void push(int note) pure {
-    if (idx == data.length - 1) return;
-    data[++idx] = note;
-    on[note] = true;
-  }
-
-  int front() const pure {
-    // TODO: assert(!empty);
-    return empty ? data[0] : data[idx];
-  }
-
-  void reset() pure {
-    idx = -1;
-    on[] = false;
-  }
-
-  void popFront() pure {
-    while (!empty) {
-      --idx;
-      if (on[this.front]) return;
-    }
-  }
-}
-
-/// Mono voice status (subosc).
-struct VoiceStatus {
-  @nogc nothrow @safe @fastmath:
-
-  bool isPlaying() const pure {
-    return !this.envelope.empty;
-  }
-
-  float front() const {
-    if (!this.isPlaying) return 0f;
-    return this._gain * this.envelope.front;
-  }
-
-  void popFront() pure {
-    this.envelope.popFront();
-    if (_legatoFrames < _portamentFrames) ++_legatoFrames;
-  }
-
-  void setSampleRate(float sampleRate) pure {
-    _sampleRate = sampleRate;
-    this.envelope.setSampleRate(sampleRate);
-    _legatoFrames = 0;
-    _notePrev = -1;
-  }
-
-  void setParams(bool legato, float portament, bool autoPortament) pure {
-    _legato = legato;
-    _portamentFrames = portament * _sampleRate;
-    _autoPortament = autoPortament;
-  }
-
-  void play(int note, float gain) pure {
-    this._notePrev = (_autoPortament && !this.isPlaying) ? -1 : _stack.front;
-    this._gain = gain;
-    this._legatoFrames = 0;
-    _stack.push(note);
-    if (_legato && this.isPlaying) return;
-    this.envelope.attack();
-  }
-
-  void stop(int note) pure {
-    if (this.isPlaying) {
-      _stack.on[note] = false;
-      if (_stack.front == note) {
-        _stack.popFront();
-        _legatoFrames = 0;
-        _notePrev = note;
-        if (_legato && !_stack.empty) return;
-        this.envelope.release();
-        _stack.reset();
-      }
-    }
-  }
-
-  float note() const pure {
-    if (!_legato || _legatoFrames >= _portamentFrames
-        || _notePrev == -1) return _stack.front;
-
-    auto diff = (_stack.front - _notePrev) * _legatoFrames / _portamentFrames;
-    return _notePrev + diff;
-  }
-
- private:
-  float _sampleRate = 44100;
-  float _notePrev = -1;
-  float _gain = 1f;
-
-  bool _legato = false;
-  bool _autoPortament = false;
-  float _portamentFrames = 0;
-  float _legatoFrames = 0;
-
-  ADSR envelope;
-  VoiceStack _stack;
-}
-
-unittest {
-  VoiceStatus v;
-  v._legato = true;
-  v.play(23, 1);
-  assert(v.note == 23);
-  v.play(24, 1);
-  assert(v.note == 24);
-  v.stop(24);
-  assert(v.note == 23);
-}
 
 /// Maps 0 to 127 into Decibel domain with affine transformation.
 /// For example, velocities [0, 68, 127] will be mapped to
@@ -175,23 +54,23 @@ struct Oscillator
   @safe @nogc nothrow @fastmath:
 
   // Setters
-  pure void setInitialPhase(float value) {
+  void setInitialPhase(float value) pure {
     this._initialPhase = value;
   }
 
-  pure void setWaveform(Waveform value) {
+  void setWaveform(Waveform value) pure {
     foreach (ref w; _waves) {
       w.waveform = value;
     }
   }
 
-  pure void setPulseWidth(float value) {
+  void setPulseWidth(float value) pure {
     foreach (ref w; _waves) {
       w.pulseWidth = value;
     }
   }
 
-  pure void setSampleRate(float sampleRate) {
+  void setSampleRate(float sampleRate) pure {
     foreach (ref v; _voicesArr) {
       v.setSampleRate(sampleRate);
     }
@@ -201,7 +80,7 @@ struct Oscillator
     }
   }
 
-  pure void setVelocitySense(float value) {
+  void setVelocitySense(float value) pure {
     this._velocitySense = value;
   }
 
@@ -217,25 +96,24 @@ struct Oscillator
     }
   }
 
-  pure void setNoteTrack(bool b) {
+  void setNoteTrack(bool b) pure {
     _noteTrack = b;
   }
 
-  pure void setNoteDiff(float note) {
+  void setNoteDiff(float note) pure {
     _noteDiff = note;
   }
 
-  pure void setNoteDetune(float val) {
+  void setNoteDetune(float val) pure {
     _noteDiff = val;
   }
 
-  pure float note(const ref VoiceStatus v) const {
+  float note(const ref VoiceStatus v) const pure {
     return (_noteTrack ? v.note : 69.0f) + _noteDiff + _noteDetune
-        // TODO: fix pitch bend
         + _pitchBend * _pitchBendWidth;
   }
 
-  pure void synchronize(const ref Oscillator src) {
+  void synchronize(const ref Oscillator src) pure {
     foreach (i, ref w; _waves) {
       if (src._waves[i].normalized) {
         w.phase = 0f;
@@ -249,12 +127,9 @@ struct Oscillator
     }
   }
 
-  pure void setADSR(float a, float d, float s, float r) {
+  void setADSR(float a, float d, float s, float r) pure {
     foreach (ref v; _voices) {
-      v.envelope.attackTime = a;
-      v.envelope.decayTime = d;
-      v.envelope.sustainLevel = s;
-      v.envelope.releaseTime = r;
+      v.setADSR(a, d, s, r);
     }
   }
 
@@ -270,7 +145,7 @@ struct Oscillator
   }
 
   /// Increments phase in _waves.
-  pure void popFront() {
+  void popFront() pure {
     foreach (ref v; _voices) {
       v.popFront();
     }
@@ -280,7 +155,7 @@ struct Oscillator
   }
 
   /// Updates frequency by MIDI and params.
-  pure void updateFreq() @system {
+  void updateFreq() pure @system {
     foreach (i, ref v; _voices) {
       if (v.isPlaying) {
         _waves[i].freq = convertMIDINoteToFrequency(this.note(v));
@@ -288,14 +163,14 @@ struct Oscillator
     }
   }
 
-  pure bool isPlaying() const {
+  bool isPlaying() const pure {
     foreach (ref v; _voices) {
       if (v.isPlaying) return true;
     }
     return false;
   }
 
-  pure WaveformRange lastUsedWave() const {
+  WaveformRange lastUsedWave() const pure {
     return _waves[_lastUsedId];
   }
 
@@ -318,7 +193,7 @@ struct Oscillator
     return (_lastUsedId + 1) % _voices.length;
   }
 
-  pure void markNoteOn(MidiMessage midi) @system {
+  void markNoteOn(MidiMessage midi) pure @system {
     const i = this.getNewVoiceId();
     const db =  velocityToDB(midi.noteVelocity(), this._velocitySense);
     _voices[i].play(midi.noteNumber(), convertDecibelToLinearGain(db));
@@ -327,7 +202,7 @@ struct Oscillator
     _lastUsedId = i;
   }
 
-  pure void markNoteOff(int note) {
+  void markNoteOff(int note) pure {
     foreach (ref v; this._voices) {
       v.stop(note);
     }
