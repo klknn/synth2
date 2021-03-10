@@ -60,18 +60,16 @@ struct VoiceStatus {
 
   float front() const {
     if (!this.isPlaying) return 0f;
-    return this.wave.front * this._gain * this.envelope.front;
+    return this._gain * this.envelope.front;
   }
 
   void popFront() pure {
-    this.wave.popFront();
     this.envelope.popFront();
     if (_legatoFrames < _portamentFrames) ++_legatoFrames;
   }
 
   void setSampleRate(float sampleRate) pure {
-    this.wave.sampleRate = sampleRate;
-    this.wave.phase = 0;
+    _sampleRate = sampleRate;
     this.envelope.setSampleRate(sampleRate);
     _legatoFrames = 0;
     _notePrev = -1;
@@ -79,7 +77,7 @@ struct VoiceStatus {
 
   void setParams(bool legato, float portament, bool autoPortament) pure {
     _legato = legato;
-    _portamentFrames = portament * this.wave.sampleRate;
+    _portamentFrames = portament * _sampleRate;
     _autoPortament = autoPortament;
   }
 
@@ -115,6 +113,7 @@ struct VoiceStatus {
   }
 
  private:
+  float _sampleRate = 44100;
   float _notePrev = -1;
   float _gain = 1f;
 
@@ -123,7 +122,6 @@ struct VoiceStatus {
   float _portamentFrames = 0;
   float _legatoFrames = 0;
 
-  WaveformRange wave;
   ADSR envelope;
   VoiceStack _stack;
 }
@@ -182,20 +180,24 @@ struct Oscillator
   }
 
   pure void setWaveform(Waveform value) {
-    foreach (ref v; _voices) {
-      v.wave.waveform = value;
+    foreach (ref w; _waves) {
+      w.waveform = value;
     }
   }
 
   pure void setPulseWidth(float value) {
-    foreach (ref v; _voices) {
-      v.wave.pulseWidth = value;
+    foreach (ref w; _waves) {
+      w.pulseWidth = value;
     }
   }
 
   pure void setSampleRate(float sampleRate) {
-    foreach (ref v; _voices) {
+    foreach (ref v; _voicesArr) {
       v.setSampleRate(sampleRate);
+    }
+    foreach (ref w; _wavesArr) {
+      w.sampleRate = sampleRate;
+      w.phase = 0;
     }
   }
 
@@ -234,16 +236,16 @@ struct Oscillator
   }
 
   pure void synchronize(const ref Oscillator src) {
-    foreach (i, ref v; _voices) {
-      if (src._voices[i].wave.normalized) {
-        v.wave.phase = 0f;
+    foreach (i, ref w; _waves) {
+      if (src._waves[i].normalized) {
+        w.phase = 0f;
       }
     }
   }
 
   void setFM(float scale, const ref Oscillator mod) {
-    foreach (i, ref v; _voices) {
-      v.wave.phase += scale * mod._voices[i].front;
+    foreach (i, ref w; _waves) {
+      w.phase += scale * mod._voices[i].front;
     }
   }
 
@@ -261,8 +263,8 @@ struct Oscillator
   /// Returns sum of amplitudes of _waves at the current phase.
   float front() const {
     float sample = 0;
-    foreach (ref v; _voices) {
-      sample += v.front;
+    foreach (i, ref v; _voices) {
+      sample += v.front * _waves[i].front;
     }
     return sample / _voicesArr.length;
   }
@@ -272,13 +274,16 @@ struct Oscillator
     foreach (ref v; _voices) {
       v.popFront();
     }
+    foreach (ref w; _waves) {
+      w.popFront();
+    }
   }
 
   /// Updates frequency by MIDI and params.
   pure void updateFreq() @system {
-    foreach (ref v; _voices) {
+    foreach (i, ref v; _voices) {
       if (v.isPlaying) {
-        v.wave.freq = convertMIDINoteToFrequency(this.note(v));
+        _waves[i].freq = convertMIDINoteToFrequency(this.note(v));
       }
     }
   }
@@ -291,7 +296,7 @@ struct Oscillator
   }
 
   pure WaveformRange lastUsedWave() const {
-    return _voices[_lastUsedId].wave;
+    return _waves[_lastUsedId];
   }
 
   void setVoice(int n, bool legato, float portament, bool autoPortament) {
@@ -318,7 +323,7 @@ struct Oscillator
     const db =  velocityToDB(midi.noteVelocity(), this._velocitySense);
     _voices[i].play(midi.noteNumber(), convertDecibelToLinearGain(db));
     if (this._initialPhase != -PI)
-      _voices[i].wave.phase = this._initialPhase;
+      _waves[i].phase = this._initialPhase;
     _lastUsedId = i;
   }
 
@@ -332,6 +337,10 @@ struct Oscillator
     return _voicesArr[0 .. _maxVoices];
   }
 
+  inout(WaveformRange)[] _waves() inout pure {
+    return _wavesArr[0 .. _maxVoices];
+  }
+
   // voice global config
   float _initialPhase = 0.0;
   float _noteDiff = 0.0;
@@ -343,5 +352,7 @@ struct Oscillator
   size_t _lastUsedId = 0;
   size_t _maxVoices = _voicesArr.length;
 
-  VoiceStatus[16] _voicesArr;
+  enum numVoices = 16;
+  VoiceStatus[numVoices] _voicesArr;
+  WaveformRange[numVoices] _wavesArr;
 }

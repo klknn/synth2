@@ -376,7 +376,6 @@ class Synth2Client : Client {
       output = _eq.apply(output);
 
       output *= modAmp;
-      // TODO: improve panning algorithm.
       outputs[0][frame] = (1 + modPan) * output;
       outputs[1][frame] = (1 - modPan) * output;
       _filter.popFront();
@@ -740,8 +739,6 @@ unittest {
 
   static immutable kinds = [EnumMembers!EffectKind];
   foreach (EffectKind kind; kinds) {
-    // TODO: fix comp
-    // if (kind == EffectKind.comp) continue;
     host.setParam!(Params.effectKind)(kind);
     assert(host.paramChangeOutputs!(Params.effectCtrl1)(0.001));
     // assert(host.paramChangeOutputs!(Params.effectCtrl2)(0.1));
