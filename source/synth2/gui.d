@@ -6,6 +6,7 @@
 */
 module synth2.gui;
 
+import core.stdc.stdio : snprintf;
 import std.algorithm : max;
 
 import dplug.core : mallocNew, destroyFree;
@@ -39,9 +40,9 @@ unittest {
   assert(mulNames[Multiplier.tri] == "0.3");
 }
 
-enum png1 = "gray.png"; // "black.png"
+enum png1 = "114.png"; // "gray.png"; // "black.png"
 enum png2 = "black.png";
-enum png3 = "white.png";
+enum png3 = "black.png";
 
 
 // https://all-free-download.com/font/download/display_free_tfb_10784.html
@@ -69,7 +70,8 @@ unittest {
   assert(expand(a, a, b) == box2i(1, 2, 103, 14));
 }
 
-version (unittest) {} else
+version (unittest) {} else:;
+
 class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "")
 {
 public:
@@ -90,21 +92,12 @@ public:
   enum slideWidth = 40;
   enum slideHeight = 100;
 
-  // v0.0.0
-  enum litTrailDiffuse = RGBA(150, 0, 192, 0);
-  enum unlitTrailDiffuse = RGBA(81, 54, 108, 0);
-  enum fontColor = RGBA(0, 0, 0, 0);
-
-  // enum litTrailDiffuse = RGBA(100, 0, 255, 0);
-  // enum unlitTrailDiffuse = RGBA(81, 54, 108, 0);
-  // enum fontColor = RGBA(100, 0, 255, 0);
-
-  // cyan
-  // enum litTrailDiffuse = RGBA(0, 255, 255, 0);
-  // enum unlitTrailDiffuse = RGBA(0, 127, 127, 0);
-  // enum fontColor = litTrailDiffuse; //; RGBA(0, 0, 0, 0);
-
-  enum litSwitchOn = 100;
+  enum litTrailDiffuse = RGBA(99, 61, 24, 20);
+  enum handleDiffuse = RGBA(240, 127, 17, 40);
+  enum unlitTrailDiffuse = RGBA(29, 29, 29, 20);
+  enum fontColor = RGBA(253, 250, 243, 0);
+  enum knobDiffuse = RGBA(65, 65, 65, 0); // RGBA(216, 216, 216, 0);
+  enum litSwitchOn = 40;
 
   static immutable pitchLabels = ["-12", "-6", "0", "6", "12"];
   static immutable waveNames = ["sin", "saw", "pls", "tri", "rnd"];
@@ -148,11 +141,6 @@ public:
 
     auto filter = _buildFilter(menv.max.x + marginW, menv.min.y);
 
-    // auto lfo1 = _buildLFO!(cast(Params) 0)(
-    //     "LFO1", osc.min.x, osc.max.y + marginH);
-    // auto lfo2 = _buildLFO!(Params.lfo2Dest - Params.lfo1Dest)(
-    //     "LFO2", lfo1.max.x + marginW, lfo1.min.y);
-
     auto effect = _buildEffect(ampEnv.max.x + marginW, ampEnv.min.y);
     auto eq = _buildEQ(filter.max.x + marginW, effect.max.y + marginH);
 
@@ -161,16 +149,11 @@ public:
         "LFO2", voice.max.x, voice.min.y);
     auto lfo1 = _buildLFO!(cast(Params) 0)(
         "LFO1", lfo2.min.x, effect.min.y);
-    // auto effect = _buildEffect(lfo1.max.x + marginW, lfo1.min.y);
-    // auto eq = _buildEQ(effect.min.x, effect.max.y + marginH);
   }
 
-  ~this()
-  {
+  ~this() {
     _font.destroyFree();
   }
-
-  import core.stdc.stdio : snprintf;
 
   void setTempo(double tempo) {
     snprintf(_tempoStr.ptr, _tempoStr.length, "BPM%3.1lf", tempo);
@@ -554,8 +537,7 @@ private:
     ui.handleHeightRatio = cast(float) fontSmall / pos.height;
     ui.handleStyle = HandleStyle.shapeBlock;
     ui.handleMaterial = RGBA(0, 0, 0, 0);  // smooth, metal, shiny, phisycal
-    ui.handleDiffuse = litTrailDiffuse; // RGBA(255, 255, 255, 0);
-    ui.handleDiffuse.a = 20;
+    ui.handleDiffuse = handleDiffuse; // RGBA(255, 255, 255, 0);
     ui.litTrailDiffuse = litTrailDiffuse;
     ui.litTrailDiffuseAlt = litTrailDiffuse;
     ui.unlitTrailDiffuse = unlitTrailDiffuse;
@@ -595,9 +577,9 @@ private:
     UIKnob knob = mallocNew!UIKnob(this.context, p);
     this.addChild(knob);
     knob.position(pos);
-    knob.knobDiffuse = unlitTrailDiffuse; // RGBA(70, 70, 70, 0);
-    knob.style = KnobStyle.cylinder;
-    knob.knobMaterial = RGBA(0, 0, 0, 0);  // smooth, metal, shiny, phisycal
+    knob.knobDiffuse = knobDiffuse; // RGBA(70, 70, 70, 0);
+    knob.style = KnobStyle.ball;
+    knob.knobMaterial = RGBA(255, 0, 0, 0);  // smooth, metal, shiny, phisycal
     knob.LEDDepth = 0;
     knob.numLEDs = 0;
     knob.knobRadius = 0.5;
@@ -608,7 +590,7 @@ private:
     knob.LEDRadiusMin = 0f;
     knob.LEDRadiusMax = 0f;
 
-    knob.litTrailDiffuse = litTrailDiffuse;
+    knob.litTrailDiffuse = handleDiffuse; // litTrailDiffuse;
     knob.unlitTrailDiffuse = unlitTrailDiffuse;
     auto lab = this._addLabel(label);
     lab.textSize(fontSmall);
@@ -621,9 +603,8 @@ private:
   box2i _buildSwitch(BoolParameter p, box2i pos, string label) {
     UIOnOffSwitch ui = mallocNew!UIOnOffSwitch(this.context, p);
     ui.position = pos;
-    ui.diffuseOn = litTrailDiffuse;
-    ui.diffuseOn.a = litSwitchOn;
-    ui.diffuseOff = unlitTrailDiffuse;
+    ui.diffuseOn = handleDiffuse;
+    ui.diffuseOff = litTrailDiffuse;
     this.addChild(ui);
     auto lab = this._addLabel(label);
     lab.textSize(fontSmall);
