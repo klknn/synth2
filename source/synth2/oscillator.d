@@ -7,7 +7,6 @@ License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
 module synth2.oscillator;
 
-import dplug.core.math : convertDecibelToLinearGain;
 import dplug.client.midi : MidiMessage, MidiStatus;
 import mir.math : log2, exp2, fastmath, PI;
 
@@ -16,34 +15,14 @@ import synth2.voice : VoiceStatus;
 
 @safe nothrow @nogc:
 
-/// Maps 0 to 127 into Decibel domain with affine transformation.
-/// For example, velocities [0, 68, 127] will be mapped to
-/// [-20, -0.9, 0] dB if sensitivity = 1.0, bias = 1e-3
-/// [-11, -1.9, -1] if sensitivity = 0.5, bias = 1e-3
-/// [-10, -10, -10] if sensitivity = 0.0, bias = 1e-3
-float velocityToDB(int velocity, float sensitivity = 1.0, float bias = 1e-1) @fastmath pure {
+/// Maps 0 to 127 into [0, 1] level with affine transformation.
+float velocityToLevel(
+    float velocity, float sensitivity = 1.0, float bias = 0.1) @fastmath pure {
   assert(0 <= velocity && velocity <= 127);
-  auto scaled = (velocity / 127f - bias) * sensitivity + bias;
-  return log2(scaled + 1e-6);
+  return (velocity / 127f - bias) * sensitivity + bias;
 }
 
-///
-@system pure unittest {
-  import std.math : approxEqual;
-  auto sens = 1.0;
-  assert(approxEqual(convertDecibelToLinearGain(velocityToDB(127, sens)), 1f));
-  assert(approxEqual(convertDecibelToLinearGain(velocityToDB(68, sens)), 0.9f));
-  assert(approxEqual(convertDecibelToLinearGain(velocityToDB(0, sens)), 0.1f));
-
-  sens = 0.0;
-  auto g = 0.682188;
-  assert(approxEqual(convertDecibelToLinearGain(velocityToDB(127, sens)), g));
-  assert(approxEqual(convertDecibelToLinearGain(velocityToDB(68, sens)), g));
-  assert(approxEqual(convertDecibelToLinearGain(velocityToDB(0, sens)), g));
-}
-
-float convertMIDINoteToFrequency(float note) @fastmath pure
-{
+float convertMIDINoteToFrequency(float note) @fastmath pure {
     return 440.0f * exp2((note - 69.0f) / 12.0f);
 }
 
@@ -195,8 +174,8 @@ struct Oscillator
 
   void markNoteOn(MidiMessage midi) pure @system {
     const i = _newVoiceId;
-    const db =  velocityToDB(midi.noteVelocity(), _velocitySense);
-    _voices[i].play(midi.noteNumber(), convertDecibelToLinearGain(db));
+    const level =  velocityToLevel(midi.noteVelocity(), _velocitySense);
+    _voices[i].play(midi.noteNumber(), level);
     if (_initialPhase != -PI)
       _waves[i].phase = _initialPhase;
     _lastUsedId = i;
