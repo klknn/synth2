@@ -75,6 +75,11 @@ unittest {
   assert(0.toBar == Bar.x32);
 }
 
+float toSeconds(Interval i, float tempo) @nogc nothrow pure @safe {
+  // bars / 4 (beat sec) * 60 (beat min) / bpm
+  return i.toFloat / 4 * 60 / tempo;
+}
+
 /// Low freq osc.
 struct LFO {
   @nogc nothrow @safe:
@@ -95,8 +100,7 @@ struct LFO {
                  Multiplier mult, TimeInfo tinfo) pure {
     _wave.waveform = waveform;
     if (sync) {
-      // BPM / 60sec (beat per sec) * 4 (bar per sec) / bar-length-scale
-      _wave.freq = cast(float) tinfo.tempo / 60 * 4 / Interval(normalizedSpeed.toBar, mult);
+      _wave.freq = 1f / Interval(normalizedSpeed.toBar, mult).toSeconds(tinfo.tempo);
     }
     else {
       _wave.freq = normalizedSpeed * 10;
