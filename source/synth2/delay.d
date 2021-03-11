@@ -29,8 +29,11 @@ struct RingBuffer(T) {
 
   /// Resizes the buffer. Initializes values to 0 if newlen > capacity.
   void resize(size_t newlen) {
+    assert(newlen <= _capacity, "capacity exceeded");
+    // Ignore newlen in release mode.
     if (newlen > _capacity) {
-      recalloc(newlen);
+      // recalloc(newlen);
+      newlen = _capacity;
     }
     _front_idx = newlen < _back_idx
         ? _back_idx - newlen
@@ -70,9 +73,9 @@ unittest {
   assert(buf.front == 2);
 
   // resize longer
-  buf.resize(4);
-  assert(buf.length == 4);
-  assert(buf.front == 0); // cleared
+  buf.resize(2);
+  assert(buf.length == 2);
+  assert(buf.front == 1);  // previous front
 }
 
 enum DelayKind {
@@ -86,29 +89,52 @@ struct Delay {
 
   void setSampleRate(float sampleRate) {
     _sampleRate = sampleRate;
-    _buffer.resize(cast(size_t) sampleRate * 3);
+    const maxFrames = cast(size_t) (sampleRate * maxDelaySec);
+    foreach (ref b; _buffers) {
+      b.recalloc(maxFrames);
+    }
   }
 
-  void setParams(float delaySecs, float feedback) {
+  void setParams(DelayKind kind, float delaySecs, size_t spread, float feedback) {
+    _kind = kind;
     const delayFrames = cast(size_t) (delaySecs * _sampleRate);
-    _buffer.resize(delayFrames);
+    _buffers[0].resize(delayFrames + spread);
+    _buffers[1].resize(
+        cast(size_t) (delayFrames * (_kind == DelayKind.pp ? 1 : 1 / 1.5)));
     _feedback = feedback;
   }
 
-  float apply(float x) {
-    auto y = _buffer.front;
-    _buffer.enqueue((1f - _feedback) * x + _feedback * y);
+  float[2] apply(float[2] x...) {
+    float[2] y;
+    y[0] = _buffers[0].front;
+    y[1] = _buffers[1].front;
+    size_t f0 = 0;
+    size_t f1 = 1;
+    if (_kind == DelayKind.x) {
+      f0 = 1;
+      f1 = 0;
+    }
+    _buffers[0].enqueue((1f - _feedback) * x[0] + _feedback * y[f0]);
+    _buffers[1].enqueue((1f - _feedback) * x[1] + _feedback * y[f1]);
     return y;
   }
 
  private:
-  RingBuffer!float _buffer;
+  DelayKind _kind;
+  RingBuffer!float[2] _buffers;
   float _feedback = 0;
   float _sampleRate = 44100;
 }
 
-// unittest {
-//   Delay dly;
-//   dly.setParams(1, 0.5);
-//   assert(dly.apply(1) == 0);
-// }
+unittest {
+  Delay dly;
+  dly.setSampleRate(44100);
+  dly.setParams(DelayKind.st, 0.5, 0, 0);
+  assert(dly.apply(1f, 2f) == [0f, 0f]);
+
+  dly.setParams(DelayKind.pp, 0.5, 0, 0);
+  assert(dly.apply(1f, 2f) == [0f, 0f]);
+
+  dly.setParams(DelayKind.x, 0.5, 0, 0);
+  assert(dly.apply(1f, 2f) == [0f, 0f]);
+}
