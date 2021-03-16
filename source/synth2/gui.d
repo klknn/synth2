@@ -1,8 +1,8 @@
 /**
-   Synth2 graphical user interface.
+Synth2 graphical user interface.
 
-   Copyright: klknn, 2021.
-   License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
+Copyright: klknn, 2021.
+License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
 module synth2.gui;
 
@@ -17,6 +17,7 @@ import dplug.pbrwidgets : PBRBackgroundGUI, UILabel, UIOnOffSwitch, UIKnob, UISl
 import gfm.math : box2i, rectangle;
 
 import synth2.lfo : multiplierNames, mulToFloat, Multiplier;
+import synth2.delay : delayNames;
 import synth2.effect : effectNames;
 import synth2.filter : filterNames;
 import synth2.params : typedParam, Params, menvDestNames, lfoDestNames, voiceKindNames;
@@ -72,14 +73,13 @@ unittest {
 
 version (unittest) {} else:;
 
-class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "")
-{
-public:
+class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
+ public:
   nothrow @nogc:
 
   enum marginW = 5;
   enum marginH = 5;
-  enum screenWidth = 630;
+  enum screenWidth = 680;
   enum screenHeight = 300;
 
   enum fontLarge = 16;
@@ -102,8 +102,7 @@ public:
   static immutable pitchLabels = ["-12", "-6", "0", "6", "12"];
   static immutable waveNames = ["sin", "saw", "pls", "tri", "rnd"];
 
-  this(Parameter[] parameters)
-  {
+  this(Parameter[] parameters) {
     _params = parameters;
     _font = mallocNew!Font(cast(ubyte[])(_fontRaw));
     super(screenWidth, screenHeight);
@@ -142,13 +141,17 @@ public:
     auto filter = _buildFilter(menv.max.x + marginW, menv.min.y);
 
     auto effect = _buildEffect(ampEnv.max.x + marginW, ampEnv.min.y);
-    auto eq = _buildEQ(filter.max.x + marginW, effect.max.y + marginH);
 
-    auto voice = _buildVoice(eq.max.x + marginW, eq.min.y);
+    auto eq = _buildEQ(effect.max.x + marginW, effect.min.y);
+
+    auto delay = _buildDelay(filter.max.x + marginW, effect.max.y + marginH);
+
+    auto voice = _buildVoice(delay.max.x + marginW, delay.min.y);
+
     auto lfo2 = _buildLFO!(Params.lfo2Dest - Params.lfo1Dest)(
-        "LFO2", voice.max.x, voice.min.y);
+        "LFO2", voice.max.x + marginW, voice.min.y);
     auto lfo1 = _buildLFO!(cast(Params) 0)(
-        "LFO1", lfo2.min.x, effect.min.y);
+        "LFO1", lfo2.min.x, eq.min.y);
   }
 
   ~this() {
@@ -168,6 +171,41 @@ public:
 private:
 
   auto _param(Params id)() { return typedParam!id(_params); }
+
+  box2i _buildDelay(int x, int y) {
+    auto label = _addLabel("Delay");
+    label.textSize(fontMedium);
+    label.position(rectangle(
+        x, y, cast(int) label.text.length * fontMediumW, fontMedium));
+
+    auto kind = _buildSlider(
+        _param!(Params.delayKind),
+        rectangle(x, label.position.max.y + marginW, slideWidth, slideHeight * 3 / 5),
+        "kind", delayNames);
+    auto mul = _buildSlider(
+        _param!(Params.delayMul),
+        rectangle(kind.max.x + marginW, kind.min.y, slideWidth, slideHeight * 3 / 5),
+        "note", mulNames);
+
+    auto spread = _buildKnob(
+        _param!(Params.delaySpread),
+        rectangle(mul.max.x + marginW, mul.min.y, knobRad, knobRad), "sprd");
+    auto feedback = _buildKnob(
+        _param!(Params.delayFeedback),
+        rectangle(spread.min.x, spread.max.y + marginH, knobRad, knobRad), "fdbk");
+    auto tone = _buildKnob(
+        _param!(Params.delayTone),
+        rectangle(spread.min.x, feedback.max.y + marginH, knobRad, knobRad), "tone");
+
+    auto mix = _buildKnob(
+        _param!(Params.delayMix),
+        rectangle(x, tone.min.y, knobRad, knobRad), "mix");
+    auto time = _buildKnob(
+        _param!(Params.delayTime),
+        rectangle(mul.min.x, tone.min.y, knobRad, knobRad), "time");
+
+    return expand(label.position, kind, time, mul, mix, spread, feedback, tone);
+  }
 
   /// Builds the Voice section.
   box2i _buildVoice(int x, int y) {

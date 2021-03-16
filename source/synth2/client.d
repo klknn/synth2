@@ -1,9 +1,9 @@
 /**
-   Synth2 virtual analog syntesizer.
+Synth2 virtual analog syntesizer.
 
-   Copyright: klknn 2021.
-   Copyright: Elias Batek 2018.
-   License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
+Copyright: klknn 2021.
+Copyright: Elias Batek 2018.
+License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
 module synth2.client;
 
@@ -21,12 +21,13 @@ import dplug.client.params : Parameter;
 import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn, makeMidiMessageNoteOff;
 import mir.math : exp2, log, sqrt, PI, fastmath;
 
+import synth2.delay : Delay, DelayKind;
 import synth2.equalizer : Equalizer;
 import synth2.effect : EffectKind, MultiEffect;
 import synth2.envelope : ADSR;
 import synth2.filter : FilterKind;
 import synth2.modfilter : ModFilter;
-import synth2.lfo : LFO, Multiplier;
+import synth2.lfo : Interval, LFO, Multiplier, toBar, toSeconds;
 version (unittest) {} else import synth2.gui : Synth2GUI;
 import synth2.oscillator : Oscillator;
 import synth2.waveform : Waveform;
@@ -96,6 +97,7 @@ class Synth2Client : Client {
     _menv.sustainLevel = 0;
     _menv.releaseTime = 0;
     _effect.setSampleRate(sampleRate);
+    _delay.setSampleRate(sampleRate);
     _eq.setSampleRate(sampleRate);
     foreach (ref lfo; _lfos) {
       lfo.setSampleRate(sampleRate);
@@ -285,6 +287,16 @@ class Synth2Client : Client {
                   readParam!float(Params.eqTone));
     const eqPan = -readParam!float(Params.eqPan);
 
+    // Setup delay.
+    const delayMix = readParam!float(Params.delayMix);
+    const delayInterval = Interval(toBar(readParam!float(Params.delayTime)),
+                               readParam!Multiplier(Params.delayMul));
+    _delay.setParams(
+        readParam!DelayKind(Params.delayKind),
+        toSeconds(delayInterval, info.tempo),
+        readParam!float(Params.delaySpread),
+        readParam!float(Params.delayFeedback));
+
     // Generate samples.
     foreach (frame; 0 .. frames) {
       float menvVal = menvAmount * _menv.front;
@@ -376,14 +388,20 @@ class Synth2Client : Client {
       output = _eq.apply(output);
 
       output *= modAmp;
-      outputs[0][frame] = (1 + modPan) * output;
-      outputs[1][frame] = (1 - modPan) * output;
+      float[2] outs;
+      outs[0] = (1 + modPan) * output;
+      outs[1] = (1 - modPan) * output;
+      const delayOuts = _delay.apply(outs);
+      foreach (i; 0 .. outs.length) {
+        outputs[i][frame] = (1 - delayMix) * outs[i] + delayMix * delayOuts[i];
+      }
       _filter.popFront();
       _menv.popFront();
     }
   }
 
  private:
+  Delay _delay;
   LFO[nLFO] _lfos;
   MultiEffect _effect;
   ModFilter _filter;

@@ -84,6 +84,8 @@ enum DelayKind {
   pp, // pingpong
 }
 
+static immutable delayNames = [__traits(allMembers, DelayKind)];
+
 struct Delay {
   @nogc nothrow pure:
 
@@ -95,13 +97,14 @@ struct Delay {
     }
   }
 
-  void setParams(DelayKind kind, float delaySecs, size_t spread, float feedback) {
+  void setParams(DelayKind kind, float delaySecs, float spread, float feedback) {
     _kind = kind;
+    _feedback = feedback;
     const delayFrames = cast(size_t) (delaySecs * _sampleRate);
-    _buffers[0].resize(delayFrames + spread);
+    const spreadFrames = cast(size_t) (spread * _sampleRate);
+    _buffers[0].resize(delayFrames + spreadFrames);
     _buffers[1].resize(
         cast(size_t) (delayFrames * (_kind == DelayKind.pp ? 1 : 1 / 1.5)));
-    _feedback = feedback;
   }
 
   float[2] apply(float[2] x...) {

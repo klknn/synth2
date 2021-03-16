@@ -13,6 +13,7 @@ import dplug.core.vec : makeVec, Vec;
 import dplug.client.params : BoolParameter, EnumParameter, GainParameter, IntegerParameter, LinearFloatParameter, LogFloatParameter, Parameter;
 import mir.math.constant : PI;
 
+import synth2.delay : DelayKind, delayNames;
 import synth2.effect : EffectKind, effectNames;
 import synth2.waveform : Waveform, waveformNames;
 import synth2.filter : filterNames, FilterKind;
@@ -105,6 +106,15 @@ enum Params : int {
   voicePoly,
   voicePortament,
   voicePortamentAuto,
+
+  // Delay
+  delayKind,
+  delayTime,
+  delayMul,
+  delaySpread,
+  delayFeedback,
+  delayTone,
+  delayMix,
 }
 
 static immutable paramNames = [__traits(allMembers, Params)];
@@ -460,6 +470,40 @@ struct ParamBuilder {
     return mallocNew!BoolParameter(Params.voicePortamentAuto, "Voice/Auto", true);
   }
 
+  static delayKind() {
+    return mallocNew!EnumParameter(
+        Params.delayKind, "DelayKind", delayNames, DelayKind.st);
+  }
+
+  static delayTime() {
+    return mallocNew!LinearFloatParameter(
+        Params.delayTime, "Delay/Time", "", 0, 1, 1);
+  }
+
+  static delayMul() {
+    return mallocNew!EnumParameter(
+        Params.delayMul, "Delay/Mul", multiplierNames, Multiplier.none);
+  }
+
+  static delaySpread() {
+    return mallocNew!LinearFloatParameter(
+        Params.delaySpread, "Delay/Spread", "sec", 0, 0.1, 0);
+  }
+
+  static delayFeedback() {
+    return mallocNew!LinearFloatParameter(
+        Params.delayFeedback, "Delay/Feedback", "", 0, 1, 0);
+  }
+
+  static delayTone() {
+    return mallocNew!LinearFloatParameter(
+        Params.delayTone, "Delay/Tone", "", -1, 1, 0);
+  }
+
+  static delayMix() {
+    return mallocNew!LinearFloatParameter(
+        Params.delayMix, "Delay/Mix", "", 0, 1, 0);
+  }
 
   @nogc nothrow:
   static Parameter[] buildParameters() {
