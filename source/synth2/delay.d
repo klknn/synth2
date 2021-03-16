@@ -7,6 +7,7 @@ enum maxDelaySec = 10.0f;
 
 struct RingBuffer(T) {
   void recalloc(size_t n) {
+    if (n == _capacity) return;
     _ptr = cast(T*) pureRealloc(_ptr, n * T.sizeof);
     assert(_ptr, "realloc failed");
     _capacity = n;

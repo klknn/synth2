@@ -289,14 +289,15 @@ class Synth2Client : Client {
 
     // Setup delay.
     const delayMix = readParam!float(Params.delayMix);
-    const delayInterval = Interval(toBar(readParam!float(Params.delayTime)),
-                               readParam!Multiplier(Params.delayMul));
-    _delay.setParams(
-        readParam!DelayKind(Params.delayKind),
-        toSeconds(delayInterval, info.tempo),
-        readParam!float(Params.delaySpread),
-        readParam!float(Params.delayFeedback));
-
+    if (delayMix != 0) {
+      const delayInterval = Interval(toBar(readParam!float(Params.delayTime)),
+                                     readParam!Multiplier(Params.delayMul));
+      _delay.setParams(
+          readParam!DelayKind(Params.delayKind),
+          toSeconds(delayInterval, info.tempo),
+          readParam!float(Params.delaySpread),
+          readParam!float(Params.delayFeedback));
+    }
     // Generate samples.
     foreach (frame; 0 .. frames) {
       float menvVal = menvAmount * _menv.front;
@@ -388,12 +389,13 @@ class Synth2Client : Client {
       output = _eq.apply(output);
 
       output *= modAmp;
-      float[2] outs;
-      outs[0] = (1 + modPan) * output;
-      outs[1] = (1 - modPan) * output;
-      const delayOuts = _delay.apply(outs);
-      foreach (i; 0 .. outs.length) {
-        outputs[i][frame] = (1 - delayMix) * outs[i] + delayMix * delayOuts[i];
+      outputs[0][frame] = (1 + modPan) * output;
+      outputs[1][frame] = (1 - modPan) * output;
+      if (delayMix != 0) {
+        const delayOuts = _delay.apply(outputs[0][frame], outputs[1][frame]);
+        foreach (i; 0 .. outputs.length) {
+          outputs[i][frame] = (1 - delayMix) * outputs[i][frame] + delayMix * delayOuts[i];
+        }
       }
       _filter.popFront();
       _menv.popFront();
