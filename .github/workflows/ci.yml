@@ -45,6 +45,7 @@ jobs:
       with:
         repository: AuburnSounds/Dplug
         path: Dplug
+        ref: v10.2.2
 
     # Cache
     - name: Cache
