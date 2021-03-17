@@ -105,9 +105,10 @@ struct LFO {
     else {
       _wave.freq = normalizedSpeed * 10;
     }
-    if (tinfo.hostIsPlaying) {
-      _wave.popFront(tinfo.timeInSamples);
-    }
+    // FIXME: this makes sound glitch.
+    // if (tinfo.hostIsPlaying) {
+    //   _wave.popFront(tinfo.timeInSamples);
+    // }
   }
 
   void setMidi(MidiMessage midi) pure @system {

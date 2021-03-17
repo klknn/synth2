@@ -84,7 +84,7 @@ struct Oscillator
   }
 
   void setNoteDetune(float val) pure {
-    _noteDiff = val;
+    _noteDetune = val;
   }
 
   void synchronize(const ref Oscillator src) pure {
