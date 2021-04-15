@@ -14,7 +14,7 @@ import dplug.graphics.color : RGBA;
 import dplug.graphics.font : Font;
 import dplug.client.params : BoolParameter, FloatParameter, Parameter;
 import dplug.pbrwidgets : PBRBackgroundGUI, UILabel, UIOnOffSwitch, UIKnob, UISlider, KnobStyle, HandleStyle;
-import gfm.math : box2i, rectangle;
+import dplug.math : box2i, rectangle;
 
 import synth2.lfo : multiplierNames, mulToFloat, Multiplier;
 import synth2.delay : delayNames;

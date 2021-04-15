@@ -1,11 +1,11 @@
 {
 	"fileVersion": 1,
 	"versions": {
-		"dplug": "10.2.2",
+		"dplug": "11.0.4",
 		"gfm": "8.0.6",
-		"intel-intrinsics": "1.3.8",
-		"mir-algorithm": "3.10.20",
-		"mir-core": "1.1.62",
+		"intel-intrinsics": "1.3.10",
+		"mir-algorithm": "3.10.44",
+		"mir-core": "1.1.64",
 		"mir-linux-kernel": "1.1.0",
 		"mir-random": "2.2.15"
 	}
