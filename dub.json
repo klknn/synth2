@@ -29,6 +29,18 @@
             "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst", "-dead_strip" ],
             "lflags-linux-ldc": [ "--version-script=resource/module-lv2.ver" ],
         },
+	{
+            "name": "VST2",
+            "targetType": "dynamicLibrary",
+            "versions": [
+                "VST2"
+            ],
+            "dependencies": {
+                "dplug:vst2": "~>11.0.4",
+            },
+            "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst.lst", "-dead_strip" ],
+            "lflags-linux-ldc": [ "--version-script=resource/module-vst.ver" ]
+        },
         {
             "name": "VST3",
             "targetType": "dynamicLibrary",
@@ -48,6 +60,8 @@
             "dependencies": {
                 "dplug:au": "~>11.0.4",
             },
+	    "lflags-osx-x86_64-ldc": [ "-exported_symbols_list", "resource/module-au.lst", "-dead_strip" ],
+	    "lflags-osx-arm64-ldc": [ "-exported_symbols_list", "resource/module-au.lst" ]
         },
     ],
     "dependencies": {
