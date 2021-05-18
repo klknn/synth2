@@ -26,10 +26,11 @@
             "dependencies": {
                 "dplug:lv2": "~>11.0.4",
             },
-            "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst", "-dead_strip" ],
+            "lflags-osx-x86_64-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst", "-dead_strip" ],
+	    "lflags-osx-arm64-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst" ],
             "lflags-linux-ldc": [ "--version-script=resource/module-lv2.ver" ],
         },
-	{
+        {
             "name": "VST2",
             "targetType": "dynamicLibrary",
             "versions": [
@@ -60,8 +61,8 @@
             "dependencies": {
                 "dplug:au": "~>11.0.4",
             },
-	    "lflags-osx-x86_64-ldc": [ "-exported_symbols_list", "resource/module-au.lst", "-dead_strip" ],
-	    "lflags-osx-arm64-ldc": [ "-exported_symbols_list", "resource/module-au.lst" ]
+            "lflags-osx-x86_64-ldc": [ "-exported_symbols_list", "resource/module-au.lst", "-dead_strip" ],
+            "lflags-osx-arm64-ldc": [ "-exported_symbols_list", "resource/module-au.lst" ]
         },
     ],
     "dependencies": {
@@ -76,9 +77,6 @@
     ],
     "dflags-linux-x86_64-ldc": [
         "-fvisibility=hidden"
-    ],
-    "dflags-osx-ldc": [
-        "-static"
     ],
     "dflags-windows-ldc": [
         "-mscrtlib=libcmt"
