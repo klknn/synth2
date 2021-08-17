@@ -10,7 +10,7 @@ import core.stdc.stdio : snprintf;
 import std.algorithm : max;
 
 import dplug.client.params : BoolParameter, FloatParameter, Parameter;
-import dplug.core : mallocNew, destroyFree;
+import dplug.core : mallocNew, makeVec, destroyFree, Vec;
 import dplug.graphics.color : RGBA;
 import dplug.graphics.font : Font;
 import dplug.flatwidgets : makeSizeConstraintsDiscrete, UIWindowResizer;
@@ -147,6 +147,15 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
         "LFO1", lfo2.min.x, eq.min.y);
 
     addChild(_resizerHint = mallocNew!UIWindowResizer(this.context()));
+
+    _defaultRects = makeVec!box2i(_children.length);
+    _defaultTextSize = makeVec!float(_children.length);
+    foreach (i, child; _children) {
+      _defaultRects[i] = child.position;
+      if (auto label = cast(UILabel) child) {
+        _defaultTextSize[i] = label.textSize();
+      }
+    }
   }
 
   ~this() {
@@ -159,17 +168,13 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
     int W = position.width;
     int H = position.height;
     float S = W / cast(float)(context.getDefaultUIWidth());
-
-    _synth2.position(rectangle(0, marginH, 80, fontLarge).scaleByFactor(S));
-    _synth2.textSize(fontLarge * S);
-
-    // _inputGainKnob.position  = rectangle(70, 101, 128, 128).scaleByFactor(S);
-    // _clipKnob.position       = rectangle(308, 101, 128, 128).scaleByFactor(S);
-    // _outputGainKnob.position = rectangle(70, 320, 128, 128).scaleByFactor(S);
-    // _mixKnob.position        = rectangle(308, 320, 128, 128).scaleByFactor(S);
-
-    // _modeSwitch.position = rectangle(380, 28, 50, 20).scaleByFactor(S);
-    _resizerHint.position = rectangle(W-30, H-30, 30, 30);
+    foreach (i, child; _children) {
+      child.position(_defaultRects[i].scaleByFactor(S));
+      if (auto label = cast(UILabel) child) {
+        label.textSize(_defaultTextSize[i] * S);
+      }
+    }
+    _resizerHint.position = rectangle(W-10, H-10, 10, 10);
   }
 
   void setTempo(double tempo) {
@@ -637,4 +642,6 @@ private:
   char[3] _polyStr;
   Parameter[] _params;
   UIWindowResizer _resizerHint;
+  Vec!box2i _defaultRects;
+  Vec!float _defaultTextSize;
 }
