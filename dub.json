@@ -24,10 +24,10 @@
                 "LV2"
             ],
             "dependencies": {
-                "dplug:lv2": "~>10.2.2",
+                "dplug:lv2": "~>12.0.8"
             },
             "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst", "-dead_strip" ],
-            "lflags-linux-ldc": [ "--version-script=resource/module-lv2.ver" ],
+            "lflags-linux-ldc": [ "--version-script=resource/module-lv2.ver" ]
         },
         {
             "name": "VST3",
@@ -36,19 +36,19 @@
                 "VST3"
             ],
             "dependencies": {
-                "dplug:vst3": "~>10.2.2",
+                "dplug:vst3": "~>12.0.8"
             },
             "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst3.lst", "-dead_strip" ],
             "lflags-linux-ldc": [ "--version-script=resource/module-vst3.ver" ]
         },
         {
-            "name": "VST",
+            "name": "VST2",
             "targetType": "dynamicLibrary",
             "versions": [
-                "VST"
+                "VST2"
             ],
             "dependencies": {
-                "dplug:vst": "~>10.2.2",
+                "dplug:vst2": "~>12.0.8"
             },
             "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst.lst", "-dead_strip" ],
             "lflags-linux-ldc": [ "--version-script=resource/module-vst.ver" ]
@@ -58,13 +58,14 @@
             "versions": ["AU"],
             "targetType": "dynamicLibrary",
             "dependencies": {
-                "dplug:au": "~>10.2.2",
+                "dplug:au": "~>12.0.8"
             },
             "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-au.lst", "-dead_strip" ]
-        },
+        }
     ],
     "dependencies": {
-        "dplug:pbr-widgets": "~>10.2.2",
+        "dplug:flat-widgets": "~>12.0.8",
+        "dplug:pbr-widgets": "~>12.0.8",
         "mir-random": "~>2.2.15"
     },
     "dflags-linux-dmd": [
@@ -79,13 +80,11 @@
     "dflags-osx-ldc": [
         "-static"
     ],
-    "dflags-windows-ldc": [
-        "-mscrtlib=libcmt"
-    ],
+    "dflags-windows-ldc": ["-mscrtlib=libcmt","-fvisibility=hidden", "-link-defaultlib-shared=false"],
     "name": "synth2",
     "stringImportPaths": [
         ".",
-        "resource",
+        "resource"
     ],
-    "targetType": "dynamicLibrary",
+    "targetType": "dynamicLibrary"
 }
