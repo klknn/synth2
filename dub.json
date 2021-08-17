@@ -24,7 +24,7 @@
                 "LV2"
             ],
             "dependencies": {
-                "dplug:lv2": "~>11.0.18"
+                "dplug:lv2": "~>12.0.8"
             },
             "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst", "-dead_strip" ],
             "lflags-linux-ldc": [ "--version-script=resource/module-lv2.ver" ]
@@ -36,7 +36,7 @@
                 "VST3"
             ],
             "dependencies": {
-                "dplug:vst3": "~>11.0.18"
+                "dplug:vst3": "~>12.0.8"
             },
             "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst3.lst", "-dead_strip" ],
             "lflags-linux-ldc": [ "--version-script=resource/module-vst3.ver" ]
@@ -48,7 +48,7 @@
                 "VST2"
             ],
             "dependencies": {
-                "dplug:vst2": "~>11.0.18"
+                "dplug:vst2": "~>12.0.8"
             },
             "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst.lst", "-dead_strip" ],
             "lflags-linux-ldc": [ "--version-script=resource/module-vst.ver" ]
@@ -58,14 +58,14 @@
             "versions": ["AU"],
             "targetType": "dynamicLibrary",
             "dependencies": {
-                "dplug:au": "~>11.0.18"
+                "dplug:au": "~>12.0.8"
             },
             "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-au.lst", "-dead_strip" ]
         }
     ],
     "dependencies": {
-        "dplug:flat-widgets": "~>11.0.18",
-        "dplug:pbr-widgets": "~>11.0.18",
+        "dplug:flat-widgets": "~>12.0.8",
+        "dplug:pbr-widgets": "~>12.0.8",
         "mir-random": "~>2.2.15"
     },
     "dflags-linux-dmd": [
