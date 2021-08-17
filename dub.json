@@ -80,9 +80,7 @@
     "dflags-osx-ldc": [
         "-static"
     ],
-    "dflags-windows-ldc": [
-        "-mscrtlib=libcmt"
-    ],
+    "dflags-windows-ldc": ["-mscrtlib=libcmt","-fvisibility=hidden", "-link-defaultlib-shared=false"],
     "name": "synth2",
     "stringImportPaths": [
         ".",
