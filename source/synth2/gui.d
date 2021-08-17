@@ -149,14 +149,13 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
     addChild(_resizerHint = mallocNew!UIWindowResizer(this.context()));
 
     _defaultRects = makeVec!box2i(_children.length);
+    _defaultTextSize = makeVec!float(_children.length);
     foreach (i, child; _children) {
       _defaultRects[i] = child.position;
+      if (auto label = cast(UILabel) child) {
+        _defaultTextSize[i] = label.textSize();
+      }
     }
-    _defaultTextSize = makeVec!float(_labels.length);
-    foreach (i, label; _labels) {
-      _defaultTextSize[i] = label.textSize();
-    }
-
   }
 
   ~this() {
@@ -171,9 +170,9 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
     float S = W / cast(float)(context.getDefaultUIWidth());
     foreach (i, child; _children) {
       child.position(_defaultRects[i].scaleByFactor(S));
-    }
-    foreach (i, label; _labels) {
-      label.textSize(_defaultTextSize[i] * S);
+      if (auto label = cast(UILabel) child) {
+        label.textSize(_defaultTextSize[i] * S);
+      }
     }
     _resizerHint.position = rectangle(W-10, H-10, 10, 10);
   }
@@ -633,7 +632,6 @@ private:
     label.textSize(fontSize);
     label.position(rectangle(x, y, cast(int) (fontSize * text.length * 0.8),
                              fontSize));
-    _labels.pushBack(label);
     return label;
   }
 
@@ -644,7 +642,6 @@ private:
   char[3] _polyStr;
   Parameter[] _params;
   UIWindowResizer _resizerHint;
-  Vec!UILabel _labels;
   Vec!box2i _defaultRects;
   Vec!float _defaultTextSize;
 }

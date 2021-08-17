@@ -6,7 +6,7 @@ on:
 # Common variables for all platforms (ldc is hardcoded in windows job)
 env:
   VST2_SDK: ${{ github.workspace }}/VST2_SDK
-  SETUP_VST2_SDK: true
+  SETUP_VST2_SDK: false
   # List of commands
   DPlugBuild: ${{ github.workspace }}/Dplug/tools/dplug-build/dplug-build
   DplugProcess: ${{ github.workspace }}/Dplug/tools/process/process
@@ -110,13 +110,13 @@ jobs:
     - name: Build synth2
       run: |
         if ("${{ matrix.os }}" -like 'windows*') {
-          $Plugins = "-c VST2 -c VST3"
+          $Plugins = "-c VST3"
           $BuiltLib = "./builds/Windows-64b-VST/klkn synth2-64.dll"
         } elseif ("${{ matrix.os }}" -like 'macOS*') {
-          $Plugins = "-c VST2 -c VST3 -c AU"
+          $Plugins = "-c VST3 -c AU"
           $BuiltLib = "./builds/macOS-64b-VST/klkn synth2.vst/Contents/MacOS/klkn synth2"
         } elseif ("${{ matrix.os }}" -like 'ubuntu*') {
-          $Plugins = "-c VST2 -c VST3 -c LV2"
+          $Plugins = "-c VST3 -c LV2"
           $BuiltLib = "./builds/Linux-64b-VST/klkn synth2.so"
         }
         $esc = '--%'
