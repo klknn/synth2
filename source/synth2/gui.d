@@ -9,12 +9,14 @@ module synth2.gui;
 import core.stdc.stdio : snprintf;
 import std.algorithm : max;
 
+import dplug.client.params : BoolParameter, FloatParameter, Parameter;
 import dplug.core : mallocNew, destroyFree;
 import dplug.graphics.color : RGBA;
 import dplug.graphics.font : Font;
-import dplug.client.params : BoolParameter, FloatParameter, Parameter;
+import dplug.gui;
+import dplug.flatwidgets;
 import dplug.pbrwidgets : PBRBackgroundGUI, UILabel, UIOnOffSwitch, UIKnob, UISlider, KnobStyle, HandleStyle;
-import gfm.math : box2i, rectangle;
+import dplug.math : box2i, rectangle;
 
 import synth2.lfo : multiplierNames, mulToFloat, Multiplier;
 import synth2.delay : delayNames;
@@ -105,14 +107,17 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
   this(Parameter[] parameters) {
     _params = parameters;
     _font = mallocNew!Font(cast(ubyte[])(_fontRaw));
-    super(screenWidth, screenHeight);
+
+    static immutable float[7] ratios = [0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f];
+    super(makeSizeConstraintsDiscrete(screenWidth, screenHeight, ratios));
+    // super(screenWidth, screenHeight);
     int x, y;
 
     // header
     y = marginH;
-    auto synth2 = _addLabel("Synth2");
-    synth2.textSize(fontLarge);
-    synth2.position(rectangle(0, y, 80, fontLarge));
+    _synth2 = _addLabel("Synth2");
+    _synth2.textSize(fontLarge);
+    _synth2.position(rectangle(0, y, 80, fontLarge));
 
     auto date = _addLabel("v0.00 " ~ __DATE__);
     const dateWidth = fontMediumW * cast(int) date.text.length;
@@ -123,10 +128,10 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
     _tempo.textSize(fontMedium);
     const tempoWidth = fontMediumW * cast(int) _tempo.text.length;
     _tempo.position(rectangle(date.position.min.x - tempoWidth,
-                              synth2.position.min.y,
+                              _synth2.position.min.y,
                               80, fontMedium));
 
-    auto osc = _buildOsc(marginW, synth2.position.max.y + marginH);
+    auto osc = _buildOsc(marginW, _synth2.position.max.y + marginH);
 
     auto master = _buildMaster(osc.max.x + marginW, osc.min.y);
 
@@ -152,10 +157,31 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
         "LFO2", voice.max.x + marginW, voice.min.y);
     auto lfo1 = _buildLFO!(cast(Params) 0)(
         "LFO1", lfo2.min.x, eq.min.y);
+
+    addChild(_resizerHint = mallocNew!UIWindowResizer(context()));
   }
 
   ~this() {
     _font.destroyFree();
+  }
+
+  override void reflow() {
+    super.reflow();
+
+    int W = position.width;
+    int H = position.height;
+    float S = W / cast(float)(context.getDefaultUIWidth());
+
+    _synth2.position(rectangle(0, marginH, 80, fontLarge).scaleByFactor(S));
+    _synth2.textSize(fontLarge * S);
+
+    // _inputGainKnob.position  = rectangle(70, 101, 128, 128).scaleByFactor(S);
+    // _clipKnob.position       = rectangle(308, 101, 128, 128).scaleByFactor(S);
+    // _outputGainKnob.position = rectangle(70, 320, 128, 128).scaleByFactor(S);
+    // _mixKnob.position        = rectangle(308, 320, 128, 128).scaleByFactor(S);
+
+    // _modeSwitch.position = rectangle(380, 28, 50, 20).scaleByFactor(S);
+    _resizerHint.position = rectangle(W-30, H-30, 30, 30);
   }
 
   void setTempo(double tempo) {
@@ -660,9 +686,10 @@ private:
   }
 
   Font _font;
-  UILabel _tempo;
+  UILabel _tempo, _synth2;
   char[10] _tempoStr;
   UILabel _poly;
   char[3] _polyStr;
   Parameter[] _params;
+  UIWindowResizer _resizerHint;
 }
