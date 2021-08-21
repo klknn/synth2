@@ -106,14 +106,12 @@ class Synth2Client : Client {
 
   override void processAudio(const(float*)[] inputs, float*[] outputs,
                              int frames, TimeInfo info) {
+    // TODO: update tempo by a parameter listener.
     version (unittest) {} else if (_gui) {
       _gui.setTempo(info.tempo);
     }
 
     const poly = readParam!int(Params.voicePoly);
-    version (unittest) {} else if (_gui) {
-      _gui.setPoly(poly);
-    }
     const voiceKind = readParam!VoiceKind(Params.voiceKind);
     const portament = readParam!float(Params.voicePortament) - ParamBuilder.logBias;
     const autoPortament = readParam!bool(Params.voicePortamentAuto);

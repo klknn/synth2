@@ -9,7 +9,7 @@ module synth2.gui;
 import core.stdc.stdio : snprintf;
 import std.algorithm : max;
 
-import dplug.client.params : BoolParameter, FloatParameter, Parameter;
+import dplug.client.params : BoolParameter, FloatParameter, IntegerParameter, Parameter, IParameterListener;
 import dplug.core : mallocNew, makeVec, destroyFree, Vec;
 import dplug.graphics.color : RGBA;
 import dplug.graphics.font : Font;
@@ -97,7 +97,7 @@ unittest {
 
 version (unittest) {} else:;
 
-class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
+class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParameterListener {
  public:
   nothrow @nogc:
 
@@ -129,6 +129,8 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
   this(Parameter[] parameters) {
     _params = parameters;
     _font = mallocNew!Font(cast(ubyte[])(_fontRaw));
+
+    _params[Params.voicePoly].addListener(this);
 
     static immutable float[7] ratios = [0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f];
     super(makeSizeConstraintsDiscrete(screenWidth, screenHeight, ratios));
@@ -209,6 +211,18 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
     snprintf(_polyStr.ptr, _polyStr.length, "%02d", poly);
     _poly.text(cast(string) _polyStr[]);
   }
+
+  void onParameterChanged(Parameter sender) {
+    if (sender.index == Params.voicePoly) {
+      if (auto polyParam = cast(IntegerParameter) sender) {
+        setPoly(polyParam.value);
+      }
+    }
+  }
+
+  void onBeginParameterEdit(Parameter sender) {}
+
+  void onEndParameterEdit(Parameter sender) {}
 
 private:
 
