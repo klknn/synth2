@@ -22,7 +22,7 @@ import synth2.lfo : multiplierNames, mulToFloat, Multiplier;
 import synth2.delay : delayNames;
 import synth2.effect : effectNames;
 import synth2.filter : filterNames;
-import synth2.params : typedParam, Params, menvDestNames, lfoDestNames, voiceKindNames;
+import synth2.params : typedParam, Params, menvDestNames, lfoDestNames, voiceKindNames, maxPoly;
 
 // TODO: CTFE formatted names from enum values.
 static immutable mulNames = {
@@ -103,7 +103,7 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
 
   enum marginW = 5;
   enum marginH = 5;
-  enum screenWidth = 750;
+  enum screenWidth = 720;
   enum screenHeight = 320;
 
   enum fontLarge = 16;
@@ -127,6 +127,8 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
   static immutable waveNames = ["sin", "saw", "pls", "tri", "rnd"];
 
   this(Parameter[] parameters) {
+    setUpdateMargin(0);
+
     _params = parameters;
     _font = mallocNew!Font(cast(ubyte[])(_fontRaw));
 
@@ -199,7 +201,9 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
         label.textSize(_defaultTextSize[i] * S);
       }
     }
-    _resizerHint.position = rectangle(W-10, H-10, 10, 10);
+    enum hintSize = 20;
+    _resizerHint.position = rectangle(W - hintSize, H - hintSize,
+                                      hintSize, hintSize);
   }
 
   void setTempo(double tempo) {
@@ -272,11 +276,14 @@ private:
         _param!(Params.voicePoly),
         rectangle(x, kind.max.y + marginH, slideWidth, slideHeight / 3),
         "", []);
-    _poly = _addLabel("16", poly.max.x + marginW, poly.min.y + marginH,
-                      fontLarge);
-    auto polyLabel = _addLabel("poly",
-                               poly.max.x, poly.min.y + fontLarge + marginH,
+    const polyWidth = kind.width - poly.width;
+    _poly = _addLabel(maxPoly.stringof, poly.max.x, poly.min.y, fontLarge);
+    _poly.width = polyWidth;
+    auto polyLabel = _addLabel("voices",
+                               _poly.position.min.x,
+                               _poly.position.max.y + marginH,
                                fontSmall);
+    polyLabel.width = polyWidth;
     auto port = _buildKnob(
         typedParam!(Params.voicePortament)(_params),
         rectangle(x, poly.max.y + marginH, knobRad, knobRad), "port");
