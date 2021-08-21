@@ -86,8 +86,6 @@ jobs:
 
     # Test
     - name: Test synth2
-      # macOS raises link errors
-      if: startsWith(matrix.os,'macOS') != true
       run: |
         dub test
 
