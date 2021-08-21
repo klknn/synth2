@@ -9,10 +9,12 @@ module synth2.gui;
 import core.stdc.stdio : snprintf;
 import std.algorithm : max;
 
-import dplug.core : mallocNew, destroyFree;
+import dplug.client.params : BoolParameter, FloatParameter, IntegerParameter, Parameter, IParameterListener;
+import dplug.core : mallocNew, makeVec, destroyFree, Vec;
 import dplug.graphics.color : RGBA;
 import dplug.graphics.font : Font;
-import dplug.client.params : BoolParameter, FloatParameter, Parameter;
+import dplug.gui : UIElement;
+import dplug.flatwidgets : makeSizeConstraintsDiscrete, UIWindowResizer;
 import dplug.pbrwidgets : PBRBackgroundGUI, UILabel, UIOnOffSwitch, UIKnob, UISlider, KnobStyle, HandleStyle;
 import dplug.math : box2i, rectangle;
 
@@ -20,7 +22,7 @@ import synth2.lfo : multiplierNames, mulToFloat, Multiplier;
 import synth2.delay : delayNames;
 import synth2.effect : effectNames;
 import synth2.filter : filterNames;
-import synth2.params : typedParam, Params, menvDestNames, lfoDestNames, voiceKindNames;
+import synth2.params : typedParam, Params, menvDestNames, lfoDestNames, voiceKindNames, maxPoly;
 
 // TODO: CTFE formatted names from enum values.
 static immutable mulNames = {
@@ -71,16 +73,38 @@ unittest {
   assert(expand(a, a, b) == box2i(1, 2, 103, 14));
 }
 
+/// width getter
+@nogc nothrow
+auto width(UIElement label) {
+  return label.position.width;
+}
+
+/// width setter
+@nogc nothrow
+void width(UIElement label, int width) {
+  auto p = label.position;
+  p.width(width);
+  label.position(p);
+}
+
+///
+unittest {
+  auto label = new UILabel(null, null);
+  assert(label.width == 0);
+  label.width = 1;
+  assert(label.width == 1);
+}
+
 version (unittest) {} else:;
 
-class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
+class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParameterListener {
  public:
   nothrow @nogc:
 
   enum marginW = 5;
   enum marginH = 5;
-  enum screenWidth = 680;
-  enum screenHeight = 300;
+  enum screenWidth = 720;
+  enum screenHeight = 320;
 
   enum fontLarge = 16;
   enum fontMedium = 12;
@@ -103,34 +127,30 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
   static immutable waveNames = ["sin", "saw", "pls", "tri", "rnd"];
 
   this(Parameter[] parameters) {
+    setUpdateMargin(0);
+
     _params = parameters;
     _font = mallocNew!Font(cast(ubyte[])(_fontRaw));
-    super(screenWidth, screenHeight);
+
+    _params[Params.voicePoly].addListener(this);
+
+    static immutable float[7] ratios = [0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f];
+    super(makeSizeConstraintsDiscrete(screenWidth, screenHeight, ratios));
     int x, y;
 
     // header
     y = marginH;
-    auto synth2 = _addLabel("Synth2");
-    synth2.textSize(fontLarge);
-    synth2.position(rectangle(0, y, 80, fontLarge));
+    _synth2 = _addLabel("Synth2", 0, marginH, fontLarge);
+    _date = _addLabel("v0.00 " ~ __DATE__, _synth2.position.max.x + marginW,
+                      _synth2.position.min.y, fontMedium);
+    _tempo = _addLabel("BPM000.0", _date.position.max.x + marginW,
+                       _synth2.position.min.y, fontMedium);
 
-    auto date = _addLabel("v0.00 " ~ __DATE__);
-    const dateWidth = fontMediumW * cast(int) date.text.length;
-    date.position(rectangle(screenWidth - dateWidth, y, dateWidth, fontMedium));
-    date.textSize(fontMedium);
-
-    _tempo = _addLabel("BPM000.0");
-    _tempo.textSize(fontMedium);
-    const tempoWidth = fontMediumW * cast(int) _tempo.text.length;
-    _tempo.position(rectangle(date.position.min.x - tempoWidth,
-                              synth2.position.min.y,
-                              80, fontMedium));
-
-    auto osc = _buildOsc(marginW, synth2.position.max.y + marginH);
+    auto osc = _buildOsc(marginW, _synth2.position.max.y + marginH);
 
     auto master = _buildMaster(osc.max.x + marginW, osc.min.y);
 
-    auto menv = _buildModEnv(master.min.x, master.max.y + marginH);
+    auto menv = _buildModEnv(master.min.x, master.max.y + marginH * 3);
 
     auto ampEnv = _buildADSR(master.max.x + marginW, osc.min.y, "AmpEnv",
                              Params.ampAttack);
@@ -144,7 +164,7 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
 
     auto eq = _buildEQ(effect.max.x + marginW, effect.min.y);
 
-    auto delay = _buildDelay(filter.max.x + marginW, effect.max.y + marginH);
+    auto delay = _buildDelay(filter.max.x + marginW, effect.max.y + marginH * 3);
 
     auto voice = _buildVoice(delay.max.x + marginW, delay.min.y);
 
@@ -152,15 +172,45 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
         "LFO2", voice.max.x + marginW, voice.min.y);
     auto lfo1 = _buildLFO!(cast(Params) 0)(
         "LFO1", lfo2.min.x, eq.min.y);
+
+    addChild(_resizerHint = mallocNew!UIWindowResizer(this.context()));
+
+    _defaultRects = makeVec!box2i(_children.length);
+    _defaultTextSize = makeVec!float(_children.length);
+    foreach (i, child; _children) {
+      _defaultRects[i] = child.position;
+      if (auto label = cast(UILabel) child) {
+        _defaultTextSize[i] = label.textSize();
+      }
+    }
   }
 
   ~this() {
     _font.destroyFree();
   }
 
+  override void reflow() {
+    super.reflow();
+
+    int W = position.width;
+    int H = position.height;
+    float S = W / cast(float)(context.getDefaultUIWidth());
+    foreach (i, child; _children) {
+      child.position(_defaultRects[i].scaleByFactor(S));
+      if (auto label = cast(UILabel) child) {
+        label.textSize(_defaultTextSize[i] * S);
+      }
+    }
+    enum hintSize = 20;
+    _resizerHint.position = rectangle(W - hintSize, H - hintSize,
+                                      hintSize, hintSize);
+  }
+
   void setTempo(double tempo) {
+    if (_tempoValue == tempo) return;
     snprintf(_tempoStr.ptr, _tempoStr.length, "BPM%3.1lf", tempo);
     _tempo.text(cast(string) _tempoStr[]);
+    _tempoValue = tempo;
   }
 
   void setPoly(int poly) {
@@ -168,16 +218,24 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
     _poly.text(cast(string) _polyStr[]);
   }
 
+  void onParameterChanged(Parameter sender) {
+    if (sender.index == Params.voicePoly) {
+      if (auto polyParam = cast(IntegerParameter) sender) {
+        setPoly(polyParam.value);
+      }
+    }
+  }
+
+  void onBeginParameterEdit(Parameter sender) {}
+
+  void onEndParameterEdit(Parameter sender) {}
+
 private:
 
   auto _param(Params id)() { return typedParam!id(_params); }
 
   box2i _buildDelay(int x, int y) {
-    auto label = _addLabel("Delay");
-    label.textSize(fontMedium);
-    label.position(rectangle(
-        x, y, cast(int) label.text.length * fontMediumW, fontMedium));
-
+    auto label = _addLabel("Delay", x, y, fontMedium);
     auto kind = _buildSlider(
         _param!(Params.delayKind),
         rectangle(x, label.position.max.y + marginW, slideWidth, slideHeight * 3 / 5),
@@ -209,10 +267,7 @@ private:
 
   /// Builds the Voice section.
   box2i _buildVoice(int x, int y) {
-    auto label = _addLabel("Voice");
-    label.textSize(fontMedium);
-    label.position(rectangle(
-        x, y, cast(int) label.text.length * fontMediumW, fontMedium));
+    auto label = _addLabel("Voice", x, y, fontMedium);
     auto kind = _buildSlider(
         _params[Params.voiceKind],
         rectangle(x, label.position.max.y + marginH, slideWidth, slideHeight / 3),
@@ -221,14 +276,14 @@ private:
         _param!(Params.voicePoly),
         rectangle(x, kind.max.y + marginH, slideWidth, slideHeight / 3),
         "", []);
-    _poly = _addLabel("16");
-    _poly.textSize(fontLarge);
-    _poly.position(rectangle(
-        poly.max.x + marginW, poly.min.y + marginH, 2 * fontMediumW, fontLarge));
-    auto polyLabel = _addLabel("poly");
-    polyLabel.textSize(fontSmall);
-    polyLabel.position(rectangle(
-        poly.max.x, poly.min.y + fontLarge + marginH, 4 * fontSmallW, fontSmall));
+    const polyWidth = kind.width - poly.width;
+    _poly = _addLabel(maxPoly.stringof, poly.max.x, poly.min.y, fontLarge);
+    _poly.width = polyWidth;
+    auto polyLabel = _addLabel("voices",
+                               _poly.position.min.x,
+                               _poly.position.max.y + marginH,
+                               fontSmall);
+    polyLabel.width = polyWidth;
     auto port = _buildKnob(
         typedParam!(Params.voicePortament)(_params),
         rectangle(x, poly.max.y + marginH, knobRad, knobRad), "port");
@@ -241,9 +296,7 @@ private:
 
   /// Builds the Master section.
   box2i _buildMaster(int x, int y) {
-    auto oscMaster = this._addLabel("Master");
-    oscMaster.textSize(fontMedium);
-    oscMaster.position(rectangle(x, y, fontMediumW * 6, fontMedium));
+    auto oscMaster = this._addLabel("Master", x, y, fontMedium);
     auto oscKeyShift = this._buildSlider(
         _params[Params.oscKeyShift],
         rectangle(oscMaster.position.min.x, oscMaster.position.max.y + marginH,
@@ -293,9 +346,7 @@ private:
   /// Builds the Osc section.
   box2i _buildOsc(int x, int y) {
     // osc1
-    auto osc1lab = this._addLabel("Osc1");
-    osc1lab.textSize(fontMedium);
-    osc1lab.position(rectangle(x, y, fontMediumW * 4, fontMedium));
+    auto osc1lab = this._addLabel("Osc1", x, y, fontMedium);
     auto osc1wave = this._buildSlider(
         _params[Params.osc1Waveform],
         rectangle(osc1lab.position.min.x, osc1lab.position.max.y + marginH,
@@ -314,11 +365,8 @@ private:
           "fm");
 
     // oscSub
-    auto oscSublab = this._addLabel("OscSub");
-    oscSublab.textSize(fontMedium);
-    oscSublab.position(rectangle(
-        osc1det.max.x, osc1lab.position.min.y,
-        fontMediumW * 6, fontMedium));
+    auto oscSublab = this._addLabel(
+        "OscSub", osc1det.max.x, osc1lab.position.min.y, fontMedium);
     auto oscSubwave = this._buildSlider(
         _params[Params.oscSubWaveform],
         rectangle(oscSublab.position.min.x + marginW, osc1wave.min.y,
@@ -335,10 +383,8 @@ private:
     );
 
     // osc2
-    auto osc2lab = this._addLabel("Osc2");
-    osc2lab.textSize(fontMedium);
-    osc2lab.position(rectangle(osc1lab.position.min.x, osc1wave.max.y + marginH,
-                               fontMediumW * 4, fontMedium));
+    auto osc2lab = this._addLabel(
+        "Osc2", osc1lab.position.min.x, osc1wave.max.y + marginH * 3, fontMedium);
     auto osc2wave = this._buildSlider(
         _params[Params.osc2Waveform],
         rectangle(osc1wave.min.x, osc2lab.position.max.y + marginW,
@@ -377,9 +423,7 @@ private:
 
   /// Builds the Filter section.
   box2i _buildFilter(int x, int y) {
-    auto filterLab = this._addLabel("Filter");
-    filterLab.textSize(fontMedium);
-    filterLab.position(rectangle(x, y, fontMediumW * 6, fontMedium));
+    auto filterLab = this._addLabel("Filter", x, y, fontMedium);
     auto filterKind = this._buildSlider(
         _params[Params.filterKind],
         rectangle(x, y + fontMedium + marginH, slideWidth, slideHeight),
@@ -421,10 +465,7 @@ private:
 
   /// Builds a ADSR section. Assumes params for ADSR are contiguous.
   box2i _buildADSR(int x, int y, string label, Params attack) {
-    auto EnvLab = this._addLabel(label);
-    EnvLab.textSize(fontMedium);
-    EnvLab.position(rectangle(
-        x, y, fontMediumW * cast(int) label.length, fontMedium));
+    auto EnvLab = this._addLabel(label, x, y, fontMedium);
     enum height = cast(int) (slideHeight * 2f / 5);
     auto A = this._buildSlider(
         _params[attack],
@@ -451,9 +492,7 @@ private:
 
   /// Build "ModEnv" section.
   box2i _buildModEnv(int x, int y) {
-    auto menvLabel = this._addLabel("ModEnv");
-    menvLabel.textSize(fontMedium);
-    menvLabel.position(rectangle(x, y, fontMediumW * 6, fontMedium));
+    auto menvLabel = this._addLabel("ModEnv", x, y, fontMedium);
     auto menvDest = this._buildSlider(
         _params[Params.menvDest],
         rectangle(
@@ -480,9 +519,7 @@ private:
 
   /// Build "Effect" section.
   box2i _buildEffect(int x, int y) {
-    auto effectLabel = this._addLabel("Effect");
-    effectLabel.textSize = fontMedium;
-    effectLabel.position = rectangle(x, y, fontMediumW * 6, fontMedium);
+    auto effectLabel = this._addLabel("Effect", x, y, fontMedium);
     auto effectKind = this._buildSlider(
         _params[Params.effectKind],
         rectangle(effectLabel.position.min.x, effectLabel.position.max.y + marginH,
@@ -506,10 +543,7 @@ private:
 
   /// Builds the "EQ" section.
   box2i _buildEQ(int x, int y) {
-    auto label = _addLabel("EQ/Pan");
-    label.textSize(fontMedium);
-    label.position(rectangle(x, y, fontMediumW * cast(int) label.text.length,
-                             fontMedium));
+    auto label = _addLabel("EQ/Pan", x, y, fontMedium);
     auto freq = _buildKnob(
         typedParam!(Params.eqFreq)(_params),
         rectangle(x, label.position.max.y + marginH, knobRad, knobRad), "freq");
@@ -530,9 +564,7 @@ private:
 
   /// Build "LFO" section.
   box2i _buildLFO(Params offset)(string label, int x, int y) {
-    auto lfo1Label = this._addLabel(label);
-    lfo1Label.textSize(fontMedium);
-    lfo1Label.position(rectangle(x, y, fontMediumW * 4, fontMedium));
+    auto lfo1Label = this._addLabel(label, x, y, fontMedium);
     auto lfo1Wave = this._buildSlider(
         _params[Params.lfo1Wave + offset],
         rectangle(lfo1Label.position.min.x,  lfo1Label.position.max.y + marginH,
@@ -583,31 +615,24 @@ private:
 
     box2i ret = ui.position;
     if (vlabels.length > 0) {
-      uint labelHeight = pos.height / cast(uint) vlabels.length;
+      const labelHeight = cast(double) pos.height / vlabels.length;
       int maxlen = 0;
       foreach (lab; vlabels) {
         maxlen = max(maxlen, cast(int) lab.length);
       }
       foreach (i, lab; vlabels) {
-        UILabel l = _addLabel(lab);
-        const width = maxlen * fontSmallW;
-        const box = rectangle(
-            pos.max.x - marginW,
-            cast(uint) (pos.min.y + (vlabels.length - i - 1) * labelHeight),
-            width, labelHeight);
-        l.position(box);
-        ret = ret.expand(box);
-        l.textSize(fontSmall);
+        const y = cast(uint) (pos.min.y + (vlabels.length - i - 1) * labelHeight);
+        UILabel l = _addLabel(lab, pos.max.x, y, fontSmall);
+        l.width(maxlen * fontSmallW);
+        ret = ret.expand(l.position);
       }
     }
 
     if (label == "") {
       return ret;
     }
-    auto lab = this._addLabel(label);
-    lab.textSize(fontSmall);
-    const width = fontSmallW * cast(int) label.length;
-    lab.position(rectangle(pos.min.x, pos.max.y, max(slideWidth/2, width), fontSmall));
+    auto lab = this._addLabel(label, pos.min.x, pos.max.y + marginH, fontSmall);
+    lab.width = ret.width;
     return ret.expand(lab.position);
   }
 
@@ -630,11 +655,9 @@ private:
 
     knob.litTrailDiffuse = handleDiffuse; // litTrailDiffuse;
     knob.unlitTrailDiffuse = unlitTrailDiffuse;
-    auto lab = this._addLabel(label);
-    lab.textSize(fontSmall);
-    lab.position(rectangle(knob.position.min.x, knob.position.max.y,
-                           knob.position.width, fontSmall));
-    // fontSmallW * cast(int) label.length, fontSmall));
+    auto lab = this._addLabel(label, knob.position.min.x, knob.position.max.y, fontSmall);
+    // TODO: margin.
+    lab.width = knob.position.width;
     return expand(knob.position, lab.position);
   }
 
@@ -644,25 +667,29 @@ private:
     ui.diffuseOn = handleDiffuse;
     ui.diffuseOff = litTrailDiffuse;
     this.addChild(ui);
-    auto lab = this._addLabel(label);
-    lab.textSize(fontSmall);
-    const width = fontSmallW * cast(int) label.length;
-    lab.position(rectangle(pos.min.x, pos.max.y,
-                           width, fontSmall));
+    auto lab = this._addLabel(label, pos.min.x, pos.max.y, fontSmall);
+    lab.width = ui.width;
     return expand(ui.position, lab.position);
   }
 
-  UILabel _addLabel(string text) {
+  UILabel _addLabel(string text, int x, int y, int fontSize) {
     UILabel label;
     this.addChild(label = mallocNew!UILabel(context(), _font, text));
     label.textColor(fontColor);
+    label.textSize(fontSize);
+    label.position(rectangle(x, y, cast(int) (fontSize * text.length * 0.8),
+                             fontSize));
     return label;
   }
 
   Font _font;
-  UILabel _tempo;
+  UILabel _tempo, _synth2, _date;
   char[10] _tempoStr;
+  double _tempoValue;
   UILabel _poly;
   char[3] _polyStr;
   Parameter[] _params;
+  UIWindowResizer _resizerHint;
+  Vec!box2i _defaultRects;
+  Vec!float _defaultTextSize;
 }
