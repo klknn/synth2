@@ -13,6 +13,7 @@ import dplug.client.params : BoolParameter, FloatParameter, Parameter;
 import dplug.core : mallocNew, makeVec, destroyFree, Vec;
 import dplug.graphics.color : RGBA;
 import dplug.graphics.font : Font;
+import dplug.gui : UIElement;
 import dplug.flatwidgets : makeSizeConstraintsDiscrete, UIWindowResizer;
 import dplug.pbrwidgets : PBRBackgroundGUI, UILabel, UIOnOffSwitch, UIKnob, UISlider, KnobStyle, HandleStyle;
 import dplug.math : box2i, rectangle;
@@ -72,6 +73,28 @@ unittest {
   assert(expand(a, a, b) == box2i(1, 2, 103, 14));
 }
 
+/// width getter
+@nogc nothrow
+auto width(UIElement label) {
+  return label.position.width;
+}
+
+/// width setter
+@nogc nothrow
+void width(UIElement label, int width) {
+  auto p = label.position;
+  p.width(width);
+  label.position(p);
+}
+
+///
+unittest {
+  auto label = new UILabel(null, null);
+  assert(label.width == 0);
+  label.width = 1;
+  assert(label.width == 1);
+}
+
 version (unittest) {} else:;
 
 class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
@@ -80,7 +103,7 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
 
   enum marginW = 5;
   enum marginH = 5;
-  enum screenWidth = 700;
+  enum screenWidth = 750;
   enum screenHeight = 320;
 
   enum fontLarge = 16;
@@ -575,13 +598,10 @@ private:
         maxlen = max(maxlen, cast(int) lab.length);
       }
       foreach (i, lab; vlabels) {
-        const width = maxlen * fontSmallW;
-        const box = rectangle(
-            pos.max.x - marginW,
-            cast(uint) (pos.min.y + (vlabels.length - i - 1) * labelHeight),
-            width, cast(int) labelHeight);
-        UILabel l = _addLabel(lab, box.min.x, box.min.y, fontSmall);
-        ret = ret.expand(box);
+        const y = cast(uint) (pos.min.y + (vlabels.length - i - 1) * labelHeight);
+        UILabel l = _addLabel(lab, pos.max.x, y, fontSmall);
+        l.width(maxlen * fontSmallW);
+        ret = ret.expand(l.position);
       }
     }
 
@@ -589,6 +609,7 @@ private:
       return ret;
     }
     auto lab = this._addLabel(label, pos.min.x, pos.max.y + marginH, fontSmall);
+    lab.width = ret.width;
     return ret.expand(lab.position);
   }
 
@@ -612,6 +633,8 @@ private:
     knob.litTrailDiffuse = handleDiffuse; // litTrailDiffuse;
     knob.unlitTrailDiffuse = unlitTrailDiffuse;
     auto lab = this._addLabel(label, knob.position.min.x, knob.position.max.y, fontSmall);
+    // TODO: margin.
+    lab.width = knob.position.width;
     return expand(knob.position, lab.position);
   }
 
@@ -622,6 +645,7 @@ private:
     ui.diffuseOff = litTrailDiffuse;
     this.addChild(ui);
     auto lab = this._addLabel(label, pos.min.x, pos.max.y, fontSmall);
+    lab.width = ui.width;
     return expand(ui.position, lab.position);
   }
 

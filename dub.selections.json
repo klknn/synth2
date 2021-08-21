@@ -1,7 +1,7 @@
 {
 	"fileVersion": 1,
 	"versions": {
-		"dplug": "12.0.8",
+		"dplug": "12.0.9",
 		"gfm": "8.0.6",
 		"intel-intrinsics": "1.5.1",
 		"mir-algorithm": "3.10.79",
