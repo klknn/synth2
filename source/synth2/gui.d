@@ -203,8 +203,10 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
   }
 
   void setTempo(double tempo) {
+    if (_tempoValue == tempo) return;
     snprintf(_tempoStr.ptr, _tempoStr.length, "BPM%3.1lf", tempo);
     _tempo.text(cast(string) _tempoStr[]);
+    _tempoValue = tempo;
   }
 
   void setPoly(int poly) {
@@ -676,6 +678,7 @@ private:
   Font _font;
   UILabel _tempo, _synth2, _date;
   char[10] _tempoStr;
+  double _tempoValue;
   UILabel _poly;
   char[3] _polyStr;
   Parameter[] _params;
