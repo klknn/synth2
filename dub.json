@@ -27,7 +27,7 @@
                 "dplug:lv2": "~>12.0.9"
             },
             "lflags-osx-x86_64-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst", "-dead_strip" ],
-	          "lflags-osx-arm64-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst" ],
+            "lflags-osx-arm64-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst" ],
             "lflags-linux-ldc": [ "--version-script=resource/module-lv2.ver" ],
         },
         {
