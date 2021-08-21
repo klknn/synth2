@@ -117,6 +117,17 @@ jobs:
         name: synth2-${{ matrix.os }}
         path: ./builds/
 
+    - name: Archive zip
+      if: matrix.compiler == 'ldc-latest'
+      run: |
+        7z a ${{ matrix.os }}.zip builds
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: matrix.compiler == 'ldc-latest' && startsWith(github.ref, 'refs/tags/')
+      with:
+        files: ${{ matrix.os }}.zip
+
   Skip:
     if: "contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
