@@ -26,20 +26,9 @@
             "dependencies": {
                 "dplug:lv2": "~>12.0.9"
             },
-            "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst", "-dead_strip" ],
-            "lflags-linux-ldc": [ "--version-script=resource/module-lv2.ver" ]
-        },
-        {
-            "name": "VST3",
-            "targetType": "dynamicLibrary",
-            "versions": [
-                "VST3"
-            ],
-            "dependencies": {
-                "dplug:vst3": "~>12.0.9"
-            },
-            "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst3.lst", "-dead_strip" ],
-            "lflags-linux-ldc": [ "--version-script=resource/module-vst3.ver" ]
+            "lflags-osx-x86_64-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst", "-dead_strip" ],
+            "lflags-osx-arm64-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst" ],
+            "lflags-linux-ldc": [ "--version-script=resource/module-lv2.ver" ],
         },
         {
             "name": "VST2",
@@ -54,14 +43,27 @@
             "lflags-linux-ldc": [ "--version-script=resource/module-vst.ver" ]
         },
         {
+            "name": "VST3",
+            "targetType": "dynamicLibrary",
+            "versions": [
+                "VST3"
+            ],
+            "dependencies": {
+                "dplug:vst3": "~>12.0.9"
+            },
+            "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst3.lst", "-dead_strip" ],
+            "lflags-linux-ldc": [ "--version-script=resource/module-vst3.ver" ]
+        },
+        {
             "name": "AU",
             "versions": ["AU"],
             "targetType": "dynamicLibrary",
             "dependencies": {
                 "dplug:au": "~>12.0.9"
             },
-            "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-au.lst", "-dead_strip" ]
-        }
+            "lflags-osx-x86_64-ldc": [ "-exported_symbols_list", "resource/module-au.lst", "-dead_strip" ],
+            "lflags-osx-arm64-ldc": [ "-exported_symbols_list", "resource/module-au.lst" ]
+        },
     ],
     "dependencies": {
         "dplug:flat-widgets": "~>12.0.9",
@@ -76,9 +78,6 @@
     ],
     "dflags-linux-x86_64-ldc": [
         "-fvisibility=hidden"
-    ],
-    "dflags-osx-ldc": [
-        "-static"
     ],
     "dflags-windows-ldc": ["-mscrtlib=libcmt","-fvisibility=hidden", "-link-defaultlib-shared=false"],
     "name": "synth2",

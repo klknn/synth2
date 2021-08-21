@@ -28,8 +28,6 @@ jobs:
           - windows-latest
           - ubuntu-latest
           - macOS-latest
-        arch:
-          - 'x86_64'
         compiler:
           - 'ldc-beta'
           - 'ldc-latest'
@@ -45,7 +43,6 @@ jobs:
       with:
         repository: AuburnSounds/Dplug
         path: Dplug
-        ref: v10.2.2
 
     # Cache
     - name: Cache
@@ -64,16 +61,9 @@ jobs:
       run: |
         sudo apt-get -yq install libx11-dev
 
-    # - name: Install Dependencies - Mac
-    #   if: startsWith(matrix.os,'macOS')
-    #   run: |
-    #     brew update
-
     - name: Setup Visual Studio Command Prompt - Windows
       if: startsWith(matrix.os,'windows')
       uses: ilammy/msvc-dev-cmd@v1
-      # with:
-        # arch: ${{ matrix.arch }}  # 'x64'by default
 
     - name: Install compiler
       uses: dlang-community/setup-dlang@v1
@@ -94,11 +84,6 @@ jobs:
         cp "./VST3 SDK/pluginterfaces/vst2.x/aeffect.h" ${{ env.VST2_SDK }}/pluginterfaces/vst2.x/aeffect.h
         cp "./VST3 SDK/pluginterfaces/vst2.x/aeffectx.h" ${{ env.VST2_SDK }}/pluginterfaces/vst2.x/aeffectx.h
 
-    # - name: Install process
-    #   run: |
-    #     dub build
-    #   working-directory: ./Dplug/tools/process
-
     # Test
     - name: Test synth2
       # macOS raises link errors
@@ -111,17 +96,13 @@ jobs:
       run: |
         if ("${{ matrix.os }}" -like 'windows*') {
           $Plugins = "-c VST2 -c VST3"
-          $BuiltLib = "./builds/Windows-64b-VST/klkn synth2-64.dll"
         } elseif ("${{ matrix.os }}" -like 'macOS*') {
           $Plugins = "-c VST2 -c VST3 -c AU"
-          $BuiltLib = "./builds/macOS-64b-VST/klkn synth2.vst/Contents/MacOS/klkn synth2"
         } elseif ("${{ matrix.os }}" -like 'ubuntu*') {
           $Plugins = "-c VST2 -c VST3 -c LV2"
-          $BuiltLib = "./builds/Linux-64b-VST/klkn synth2.so"
         }
         $esc = '--%'
-        ${{ env.DPlugBuild }} -a ${{ matrix.arch }} $esc $Plugins --final
-      # ${{ env.DplugProcess }} $BuiltLib -t 10
+        ${{ env.DPlugBuild }} $esc $Plugins --final
       working-directory: .
 
 
