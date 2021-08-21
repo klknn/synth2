@@ -9,10 +9,11 @@ module synth2.gui;
 import core.stdc.stdio : snprintf;
 import std.algorithm : max;
 
-import dplug.client.params : BoolParameter, FloatParameter, Parameter;
+import dplug.client.params : BoolParameter, FloatParameter, IntegerParameter, Parameter, IParameterListener;
 import dplug.core : mallocNew, makeVec, destroyFree, Vec;
 import dplug.graphics.color : RGBA;
 import dplug.graphics.font : Font;
+import dplug.gui : UIElement;
 import dplug.flatwidgets : makeSizeConstraintsDiscrete, UIWindowResizer;
 import dplug.pbrwidgets : PBRBackgroundGUI, UILabel, UIOnOffSwitch, UIKnob, UISlider, KnobStyle, HandleStyle;
 import dplug.math : box2i, rectangle;
@@ -21,7 +22,7 @@ import synth2.lfo : multiplierNames, mulToFloat, Multiplier;
 import synth2.delay : delayNames;
 import synth2.effect : effectNames;
 import synth2.filter : filterNames;
-import synth2.params : typedParam, Params, menvDestNames, lfoDestNames, voiceKindNames;
+import synth2.params : typedParam, Params, menvDestNames, lfoDestNames, voiceKindNames, maxPoly;
 
 // TODO: CTFE formatted names from enum values.
 static immutable mulNames = {
@@ -72,15 +73,37 @@ unittest {
   assert(expand(a, a, b) == box2i(1, 2, 103, 14));
 }
 
+/// width getter
+@nogc nothrow
+auto width(UIElement label) {
+  return label.position.width;
+}
+
+/// width setter
+@nogc nothrow
+void width(UIElement label, int width) {
+  auto p = label.position;
+  p.width(width);
+  label.position(p);
+}
+
+///
+unittest {
+  auto label = new UILabel(null, null);
+  assert(label.width == 0);
+  label.width = 1;
+  assert(label.width == 1);
+}
+
 version (unittest) {} else:;
 
-class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
+class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParameterListener {
  public:
   nothrow @nogc:
 
   enum marginW = 5;
   enum marginH = 5;
-  enum screenWidth = 700;
+  enum screenWidth = 720;
   enum screenHeight = 320;
 
   enum fontLarge = 16;
@@ -104,8 +127,12 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
   static immutable waveNames = ["sin", "saw", "pls", "tri", "rnd"];
 
   this(Parameter[] parameters) {
+    setUpdateMargin(0);
+
     _params = parameters;
     _font = mallocNew!Font(cast(ubyte[])(_fontRaw));
+
+    _params[Params.voicePoly].addListener(this);
 
     static immutable float[7] ratios = [0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f];
     super(makeSizeConstraintsDiscrete(screenWidth, screenHeight, ratios));
@@ -174,18 +201,34 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, "") {
         label.textSize(_defaultTextSize[i] * S);
       }
     }
-    _resizerHint.position = rectangle(W-10, H-10, 10, 10);
+    enum hintSize = 20;
+    _resizerHint.position = rectangle(W - hintSize, H - hintSize,
+                                      hintSize, hintSize);
   }
 
   void setTempo(double tempo) {
+    if (_tempoValue == tempo) return;
     snprintf(_tempoStr.ptr, _tempoStr.length, "BPM%3.1lf", tempo);
     _tempo.text(cast(string) _tempoStr[]);
+    _tempoValue = tempo;
   }
 
   void setPoly(int poly) {
     snprintf(_polyStr.ptr, _polyStr.length, "%02d", poly);
     _poly.text(cast(string) _polyStr[]);
   }
+
+  void onParameterChanged(Parameter sender) {
+    if (sender.index == Params.voicePoly) {
+      if (auto polyParam = cast(IntegerParameter) sender) {
+        setPoly(polyParam.value);
+      }
+    }
+  }
+
+  void onBeginParameterEdit(Parameter sender) {}
+
+  void onEndParameterEdit(Parameter sender) {}
 
 private:
 
@@ -233,11 +276,14 @@ private:
         _param!(Params.voicePoly),
         rectangle(x, kind.max.y + marginH, slideWidth, slideHeight / 3),
         "", []);
-    _poly = _addLabel("16", poly.max.x + marginW, poly.min.y + marginH,
-                      fontLarge);
-    auto polyLabel = _addLabel("poly",
-                               poly.max.x, poly.min.y + fontLarge + marginH,
+    const polyWidth = kind.width - poly.width;
+    _poly = _addLabel(maxPoly.stringof, poly.max.x, poly.min.y, fontLarge);
+    _poly.width = polyWidth;
+    auto polyLabel = _addLabel("voices",
+                               _poly.position.min.x,
+                               _poly.position.max.y + marginH,
                                fontSmall);
+    polyLabel.width = polyWidth;
     auto port = _buildKnob(
         typedParam!(Params.voicePortament)(_params),
         rectangle(x, poly.max.y + marginH, knobRad, knobRad), "port");
@@ -575,13 +621,10 @@ private:
         maxlen = max(maxlen, cast(int) lab.length);
       }
       foreach (i, lab; vlabels) {
-        const width = maxlen * fontSmallW;
-        const box = rectangle(
-            pos.max.x - marginW,
-            cast(uint) (pos.min.y + (vlabels.length - i - 1) * labelHeight),
-            width, cast(int) labelHeight);
-        UILabel l = _addLabel(lab, box.min.x, box.min.y, fontSmall);
-        ret = ret.expand(box);
+        const y = cast(uint) (pos.min.y + (vlabels.length - i - 1) * labelHeight);
+        UILabel l = _addLabel(lab, pos.max.x, y, fontSmall);
+        l.width(maxlen * fontSmallW);
+        ret = ret.expand(l.position);
       }
     }
 
@@ -589,6 +632,7 @@ private:
       return ret;
     }
     auto lab = this._addLabel(label, pos.min.x, pos.max.y + marginH, fontSmall);
+    lab.width = ret.width;
     return ret.expand(lab.position);
   }
 
@@ -612,6 +656,8 @@ private:
     knob.litTrailDiffuse = handleDiffuse; // litTrailDiffuse;
     knob.unlitTrailDiffuse = unlitTrailDiffuse;
     auto lab = this._addLabel(label, knob.position.min.x, knob.position.max.y, fontSmall);
+    // TODO: margin.
+    lab.width = knob.position.width;
     return expand(knob.position, lab.position);
   }
 
@@ -622,6 +668,7 @@ private:
     ui.diffuseOff = litTrailDiffuse;
     this.addChild(ui);
     auto lab = this._addLabel(label, pos.min.x, pos.max.y, fontSmall);
+    lab.width = ui.width;
     return expand(ui.position, lab.position);
   }
 
@@ -638,6 +685,7 @@ private:
   Font _font;
   UILabel _tempo, _synth2, _date;
   char[10] _tempoStr;
+  double _tempoValue;
   UILabel _poly;
   char[3] _polyStr;
   Parameter[] _params;

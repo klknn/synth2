@@ -148,6 +148,7 @@ enum VoiceKind {
   legato,
 }
 
+enum maxPoly = 16;
 static immutable voiceKindNames = [__traits(allMembers, VoiceKind)];
 
 /// Setup default parameter.
@@ -458,7 +459,7 @@ struct ParamBuilder {
 
   static voicePoly() {
     return mallocNew!IntegerParameter(
-        Params.voicePoly, "Voice/Poly", "voices", 0, 16, 16);
+        Params.voicePoly, "Voice/Poly", "voices", 0, maxPoly, maxPoly);
   }
 
   static voicePortament() {
