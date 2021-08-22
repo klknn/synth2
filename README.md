@@ -36,11 +36,11 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
   - [x] Saturation
 - [x] GUI
 - [x] LFO
-- [x] Effect
+- [x] Effect (phaser is WIP)
 - [x] Equalizer / Pan
 - [x] Voice
 - [ ] Arpeggiator
-- [ ] Tempo Delay
+- [x] Tempo Delay
 - [ ] Chorus / Flanger
 - [ ] Presets
 - [ ] MIDI
