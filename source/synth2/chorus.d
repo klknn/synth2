@@ -25,7 +25,7 @@ struct Chorus {
   float[2] apply(float[2] x...) {
     auto msecsMod = _msecs + _lfo.front * _depth;
     _lfo.popFront();
-    _delay.setParams(DelayKind.st, _msecs * 1e-3, 0, _feedback);
+    _delay.setParams(DelayKind.st, msecsMod * 1e-3, 0, _feedback);
     return _delay.apply(x);
   }
 
