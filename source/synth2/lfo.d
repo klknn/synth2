@@ -98,6 +98,7 @@ struct LFO {
   ///   tinfo = info on bpm etc.
   void setParams(Waveform waveform, bool sync, float normalizedSpeed,
                  Multiplier mult, TimeInfo tinfo) pure {
+    // TODO: create separated functions for sync and non-sync.
     _wave.waveform = waveform;
     if (sync) {
       _wave.freq = 1f / Interval(normalizedSpeed.toBar, mult).toSeconds(tinfo.tempo);

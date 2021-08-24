@@ -21,6 +21,7 @@ import dplug.client.params : Parameter;
 import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn, makeMidiMessageNoteOff;
 import mir.math : exp2, log, sqrt, PI, fastmath;
 
+import synth2.chorus : Chorus;
 import synth2.delay : Delay, DelayKind;
 import synth2.equalizer : Equalizer;
 import synth2.effect : EffectKind, MultiEffect;
@@ -98,6 +99,7 @@ class Synth2Client : Client {
     _menv.releaseTime = 0;
     _effect.setSampleRate(sampleRate);
     _delay.setSampleRate(sampleRate);
+    _chorus.setSampleRate(sampleRate);
     _eq.setSampleRate(sampleRate);
     foreach (ref lfo; _lfos) {
       lfo.setSampleRate(sampleRate);
@@ -296,6 +298,19 @@ class Synth2Client : Client {
           readParam!float(Params.delaySpread),
           readParam!float(Params.delayFeedback));
     }
+
+    // Setup chorus.
+    // TODO: support Params.chorusMulti and width.
+    const chorusLevel = readParam!float(Params.chorusLevel);
+    const chorusOn = readParam!bool(Params.chorusOn) && chorusLevel > 0;
+    if (chorusOn) {
+      _chorus.setParams(
+          readParam!float(Params.chorusTime),
+          readParam!float(Params.chorusFeedback),
+          readParam!float(Params.chorusDepth),
+          readParam!float(Params.chorusRate));
+    }
+
     // Generate samples.
     foreach (frame; 0 .. frames) {
       float menvVal = menvAmount * _menv.front;
@@ -389,6 +404,14 @@ class Synth2Client : Client {
       output *= modAmp;
       outputs[0][frame] = (1 + modPan) * output;
       outputs[1][frame] = (1 - modPan) * output;
+
+      if (chorusOn) {
+        const chorusOuts = _chorus.apply(outputs[0][frame], outputs[1][frame]);
+        foreach (i; 0 .. outputs.length) {
+          outputs[i][frame] += chorusLevel * chorusOuts[i];
+        }
+      }
+
       if (delayMix != 0) {
         const delayOuts = _delay.apply(outputs[0][frame], outputs[1][frame]);
         foreach (i; 0 .. outputs.length) {
@@ -401,6 +424,7 @@ class Synth2Client : Client {
   }
 
  private:
+  Chorus _chorus;
   Delay _delay;
   LFO[nLFO] _lfos;
   MultiEffect _effect;
