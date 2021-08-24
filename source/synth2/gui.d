@@ -103,7 +103,7 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
 
   enum marginW = 5;
   enum marginH = 5;
-  enum screenWidth = 640;
+  enum screenWidth = 800;
   enum screenHeight = 480;
 
   enum fontLarge = 16;
@@ -147,35 +147,37 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
     _tempo = _addLabel("BPM000.0", _date.position.max.x + marginW,
                        _synth2.position.min.y, fontMedium);
 
+    enum marginWSec = marginW * 5;
+
     auto osc = _buildOsc(marginW, _synth2.position.max.y + marginH);
 
-    auto master = _buildMaster(osc.max.x + marginW, osc.min.y);
+    auto master = _buildMaster(osc.max.x + marginWSec, osc.min.y);
 
     auto menv = _buildModEnv(master.min.x, master.max.y + marginH * 3);
 
-    auto ampEnv = _buildADSR(master.max.x + marginW, osc.min.y, "AmpEnv",
+    auto ampEnv = _buildADSR(master.max.x + marginWSec, osc.min.y, "AmpEnv",
                              Params.ampAttack);
 
     auto filterEnv = _buildADSR(ampEnv.min.x, ampEnv.max.y,
                                 "FilterEnv", Params.filterAttack);
 
-    auto filter = _buildFilter(menv.max.x + marginW, menv.min.y);
+    auto filter = _buildFilter(menv.max.x + marginWSec, menv.min.y);
 
-    auto effect = _buildEffect(ampEnv.max.x + marginW, ampEnv.min.y);
+    auto effect = _buildEffect(ampEnv.max.x + marginWSec, ampEnv.min.y);
 
-    auto eq = _buildEQ(effect.max.x + marginW, effect.min.y);
+    auto eq = _buildEQ(effect.max.x + marginWSec, effect.min.y);
 
-    auto delay = _buildDelay(filter.max.x + marginW, effect.max.y + marginH * 3);
+    auto delay = _buildDelay(filter.max.x + marginWSec, effect.max.y + marginH * 3);
 
-    auto chorus = _buildChorus(delay.max.x + marginW, delay.min.y);
+    auto chorus = _buildChorus(delay.max.x + marginWSec, delay.min.y);
 
     auto lfo1 = _buildLFO!(cast(Params) 0)(
         "LFO1", osc.min.x, osc.max.y + marginH);
 
     auto lfo2 = _buildLFO!(Params.lfo2Dest - Params.lfo1Dest)(
-        "LFO2", lfo1.max.x + marginW, lfo1.min.y);
+        "LFO2", lfo1.max.x + marginWSec, lfo1.min.y);
 
-    auto voice = _buildVoice(lfo2.max.x + marginW, lfo2.min.y);
+    auto voice = _buildVoice(lfo2.max.x + marginWSec, lfo2.min.y);
 
     addChild(_resizerHint = mallocNew!UIWindowResizer(this.context()));
 
