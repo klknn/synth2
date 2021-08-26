@@ -21,7 +21,7 @@ import dplug.client.params : Parameter;
 import dplug.client.midi : MidiMessage, makeMidiMessageNoteOn, makeMidiMessageNoteOff;
 import mir.math : exp2, log, sqrt, PI, fastmath;
 
-import synth2.chorus : Chorus;
+import synth2.chorus : MultiChorus;
 import synth2.delay : Delay, DelayKind;
 import synth2.equalizer : Equalizer;
 import synth2.effect : EffectKind, MultiEffect;
@@ -305,6 +305,7 @@ class Synth2Client : Client {
     const chorusOn = readParam!bool(Params.chorusOn) && chorusLevel > 0;
     if (chorusOn) {
       _chorus.setParams(
+          readParam!int(Params.chorusMulti),
           readParam!float(Params.chorusTime),
           readParam!float(Params.chorusFeedback),
           readParam!float(Params.chorusDepth),
@@ -424,7 +425,7 @@ class Synth2Client : Client {
   }
 
  private:
-  Chorus _chorus;
+  MultiChorus _chorus;
   Delay _delay;
   LFO[nLFO] _lfos;
   MultiEffect _effect;
@@ -837,4 +838,22 @@ unittest {
   host.setParam!(Params.voiceKind)(VoiceKind.legato);
   assert(host.paramChangeOutputs!(Params.voicePortament)(1));
   // TODO: assert(host.paramChangeOutputs!(Params.voicePortamentAuto)(false));
+}
+
+/// Test Chorus
+@nogc nothrow @system
+unittest {
+  TestHost host = { mallocNew!Synth2Client() };
+  scope (exit) destroyFree(host.client);
+
+  host.frames = 1000;
+  // TODO: test On/Off sound diff.
+  host.setParam!(Params.chorusOn)(true);
+  host.setParam!(Params.chorusLevel)(1.0);
+  assert(host.paramChangeOutputs!(Params.chorusMulti)(4));
+  assert(host.paramChangeOutputs!(Params.chorusTime)(40));
+  assert(host.paramChangeOutputs!(Params.chorusDepth)(0.5));
+  assert(host.paramChangeOutputs!(Params.chorusRate)(20));
+  assert(host.paramChangeOutputs!(Params.chorusFeedback)(1));
+  assert(host.paramChangeOutputs!(Params.chorusLevel)(1));
 }

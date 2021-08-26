@@ -34,3 +34,38 @@ struct Chorus {
   Delay _delay;
   LFO _lfo;
 }
+
+
+struct MultiChorus {
+  @nogc nothrow:
+
+  static immutable offsetMSecs = [12.5, 26.4, 18.4, 22.4];
+
+  void setSampleRate(float sampleRate) {
+    foreach (ref c; _chorus) {
+      c.setSampleRate(sampleRate);
+    }
+  }
+
+  void setParams(int numActive, float msecs, float feedback,
+                 float depth, float rate) {
+    _numActive = numActive;
+    foreach (i, ref c; _chorus) {
+      c.setParams(msecs + offsetMSecs[i], feedback, depth, rate);
+    }
+  }
+
+  float[2] apply(float[2] x...) {
+    float[2] y;
+    y[] = 0;
+    foreach (i; 0 .. _numActive) {
+      y[] += _chorus[i].apply(x)[];
+    }
+    y[] /= _numActive;
+    return y;
+  }
+
+ private:
+  int _numActive;
+  Chorus[4] _chorus;
+}

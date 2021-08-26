@@ -103,7 +103,7 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
 
   enum marginW = 5;
   enum marginH = 5;
-  enum screenWidth = 800;
+  enum screenWidth = 640;
   enum screenHeight = 480;
 
   enum fontLarge = 16;
