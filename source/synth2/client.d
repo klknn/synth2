@@ -853,6 +853,8 @@ unittest {
   host.setParam!(Params.chorusOn)(true);
   host.setParam!(Params.chorusLevel)(1.0);
   host.setParam!(Params.chorusMulti)(2);
+  assert(host.paramChangeOutputs!(Params.chorusMulti)(1));
+  assert(host.paramChangeOutputs!(Params.chorusMulti)(3));
   assert(host.paramChangeOutputs!(Params.chorusMulti)(4));
   assert(host.paramChangeOutputs!(Params.chorusTime)(40));
   assert(host.paramChangeOutputs!(Params.chorusDepth)(0.5));
