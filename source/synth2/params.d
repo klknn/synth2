@@ -89,6 +89,7 @@ enum Params : int {
   lfo2Trigger,
 
   /// Effect
+  // TODO: add effectOn param.
   effectKind,
   effectCtrl1,
   effectCtrl2,
@@ -108,6 +109,7 @@ enum Params : int {
   voicePortamentAuto,
 
   // Delay
+  // TODO: add delayOn param.
   delayKind,
   delayTime,
   delayMul,
@@ -115,6 +117,16 @@ enum Params : int {
   delayFeedback,
   delayTone,
   delayMix,
+
+  // Chorus/flanger
+  chorusOn,
+  chorusMulti,
+  chorusTime,
+  chorusDepth,
+  chorusRate,
+  chorusFeedback,
+  chorusLevel,
+  chorusWidth,
 }
 
 static immutable paramNames = [__traits(allMembers, Params)];
@@ -504,6 +516,45 @@ struct ParamBuilder {
   static delayMix() {
     return mallocNew!LinearFloatParameter(
         Params.delayMix, "Delay/Mix", "", 0, 1, 0);
+  }
+
+  static chorusOn() {
+    return mallocNew!BoolParameter(Params.chorusOn, "Chrous/On", false);
+  }
+
+  static chorusMulti() {
+    return mallocNew!IntegerParameter(
+        Params.chorusMulti, "Chorus/Multi", "mul", 1, 4, 1);
+  }
+
+  static chorusTime() {
+    return mallocNew!LinearFloatParameter(
+        Params.chorusTime, "Chorus/Time", "ms", 3, 40, 11.1);
+  }
+
+  static chorusDepth() {
+    return mallocNew!LinearFloatParameter(
+        Params.chorusDepth, "Chorus/Depth", "", 0, 0.5, 0.25);
+  }
+
+  static chorusRate() {
+    return mallocNew!LogFloatParameter(
+        Params.chorusRate, "Chorus/Rate", "hz", logBias, 20, 0.86);
+  }
+
+  static chorusFeedback() {
+    return mallocNew!LinearFloatParameter(
+        Params.chorusFeedback, "Chorus/Feedback", "", 0, 1, 0);
+  }
+
+  static chorusLevel() {
+    return mallocNew!GainParameter(
+        Params.chorusLevel, "Chorus/Level", 5, 0.28);
+  }
+
+  static chorusWidth() {
+    return mallocNew!LinearFloatParameter(
+        Params.chorusWidth, "Chorus/Width", "", 0, 1, 0);
   }
 
   @nogc nothrow:

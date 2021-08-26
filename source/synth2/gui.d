@@ -103,8 +103,8 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
 
   enum marginW = 5;
   enum marginH = 5;
-  enum screenWidth = 720;
-  enum screenHeight = 320;
+  enum screenWidth = 640;
+  enum screenHeight = 480;
 
   enum fontLarge = 16;
   enum fontMedium = 12;
@@ -133,6 +133,7 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
     _font = mallocNew!Font(cast(ubyte[])(_fontRaw));
 
     _params[Params.voicePoly].addListener(this);
+    _params[Params.chorusMulti].addListener(this);
 
     static immutable float[7] ratios = [0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f];
     super(makeSizeConstraintsDiscrete(screenWidth, screenHeight, ratios));
@@ -146,32 +147,37 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
     _tempo = _addLabel("BPM000.0", _date.position.max.x + marginW,
                        _synth2.position.min.y, fontMedium);
 
+    enum marginWSec = marginW * 5;
+
     auto osc = _buildOsc(marginW, _synth2.position.max.y + marginH);
 
-    auto master = _buildMaster(osc.max.x + marginW, osc.min.y);
+    auto master = _buildMaster(osc.max.x + marginWSec, osc.min.y);
 
     auto menv = _buildModEnv(master.min.x, master.max.y + marginH * 3);
 
-    auto ampEnv = _buildADSR(master.max.x + marginW, osc.min.y, "AmpEnv",
+    auto ampEnv = _buildADSR(master.max.x + marginWSec, osc.min.y, "AmpEnv",
                              Params.ampAttack);
 
     auto filterEnv = _buildADSR(ampEnv.min.x, ampEnv.max.y,
                                 "FilterEnv", Params.filterAttack);
 
-    auto filter = _buildFilter(menv.max.x + marginW, menv.min.y);
+    auto filter = _buildFilter(menv.max.x + marginWSec, menv.min.y);
 
-    auto effect = _buildEffect(ampEnv.max.x + marginW, ampEnv.min.y);
+    auto effect = _buildEffect(ampEnv.max.x + marginWSec, ampEnv.min.y);
 
-    auto eq = _buildEQ(effect.max.x + marginW, effect.min.y);
+    auto eq = _buildEQ(effect.max.x + marginWSec, effect.min.y);
 
-    auto delay = _buildDelay(filter.max.x + marginW, effect.max.y + marginH * 3);
+    auto delay = _buildDelay(filter.max.x + marginWSec, effect.max.y + marginH * 3);
 
-    auto voice = _buildVoice(delay.max.x + marginW, delay.min.y);
+    auto chorus = _buildChorus(delay.max.x + marginWSec, delay.min.y);
+
+    auto lfo1 = _buildLFO!(cast(Params) 0)(
+        "LFO1", osc.min.x, osc.max.y + marginH);
 
     auto lfo2 = _buildLFO!(Params.lfo2Dest - Params.lfo1Dest)(
-        "LFO2", voice.max.x + marginW, voice.min.y);
-    auto lfo1 = _buildLFO!(cast(Params) 0)(
-        "LFO1", lfo2.min.x, eq.min.y);
+        "LFO2", lfo1.max.x + marginWSec, lfo1.min.y);
+
+    auto voice = _buildVoice(lfo2.max.x + marginWSec, lfo2.min.y);
 
     addChild(_resizerHint = mallocNew!UIWindowResizer(this.context()));
 
@@ -218,10 +224,21 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
     _poly.text(cast(string) _polyStr[]);
   }
 
+  void setChorusMulti(int multi) {
+    snprintf(_chorusMultiStr.ptr, _chorusMultiStr.length, "%d", multi);
+    _chorusMulti.text(cast(string) _chorusMultiStr[]);
+  }
+
+  // TODO: create a new UILabel with IParameterListner for IntegerParameter.
   void onParameterChanged(Parameter sender) {
     if (sender.index == Params.voicePoly) {
       if (auto polyParam = cast(IntegerParameter) sender) {
         setPoly(polyParam.value);
+      }
+    }
+    if (sender.index == Params.chorusMulti) {
+      if (auto polyParam = cast(IntegerParameter) sender) {
+        setChorusMulti(polyParam.value);
       }
     }
   }
@@ -233,6 +250,59 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
 private:
 
   auto _param(Params id)() { return typedParam!id(_params); }
+
+  box2i _buildChorus(int x, int y) {
+    auto label = _addLabel("Chorus", x, y, fontMedium);
+    auto on = _buildSwitch(
+        _param!(Params.chorusOn),
+        rectangle(x, label.position.max.y + marginH, knobRad, knobRad),
+        "ON");
+
+    auto multi = _buildSlider(
+        _param!(Params.chorusMulti),
+        rectangle(on.max.x + marginW, on.min.y, slideWidth, slideHeight / 3),
+        "", []);
+    _chorusMulti = _addLabel("1", multi.max.x, multi.min.y, fontLarge);
+    auto multiLabel = _addLabel("multi",
+                                _chorusMulti.position.min.x,
+                                _chorusMulti.position.max.y + marginH,
+                                fontSmall);
+    _chorusMulti.width = multiLabel.width;
+
+    auto chorusTime = _buildKnob(
+        _param!(Params.chorusTime),
+        rectangle(x, on.max.y + marginH, knobRad, knobRad),
+        "time");
+    auto chorusDepth = _buildKnob(
+        _param!(Params.chorusDepth),
+        rectangle(chorusTime.max.x + marginW,
+                  on.max.y + marginH, knobRad, knobRad),
+        "deph");
+    auto chorusRate = _buildKnob(
+        _param!(Params.chorusRate),
+        rectangle(chorusDepth.max.x + marginH,
+                  on.max.y + marginH, knobRad, knobRad),
+        "rate");
+
+    auto chorusFeedback = _buildKnob(
+        _param!(Params.chorusFeedback),
+        rectangle(x, chorusTime.max.y + marginH, knobRad, knobRad),
+        "fdbk");
+    auto chorusLevel = _buildKnob(
+        _param!(Params.chorusLevel),
+        rectangle(chorusFeedback.max.x + marginW,
+                  chorusTime.max.y + marginH, knobRad, knobRad),
+        "levl");
+    auto chorusWidth = _buildKnob(
+        _param!(Params.chorusWidth),
+        rectangle(chorusLevel.max.x + marginW,
+                  chorusTime.max.y + marginH, knobRad, knobRad),
+        "widh");
+    return expand(label.position, on,
+                  _chorusMulti.position, multiLabel.position,
+                  chorusTime, chorusDepth, chorusRate,
+                  chorusFeedback, chorusLevel, chorusWidth);
+  }
 
   box2i _buildDelay(int x, int y) {
     auto label = _addLabel("Delay", x, y, fontMedium);
@@ -686,8 +756,8 @@ private:
   UILabel _tempo, _synth2, _date;
   char[10] _tempoStr;
   double _tempoValue;
-  UILabel _poly;
-  char[3] _polyStr;
+  UILabel _poly, _chorusMulti;
+  char[3] _polyStr, _chorusMultiStr;
   Parameter[] _params;
   UIWindowResizer _resizerHint;
   Vec!box2i _defaultRects;
