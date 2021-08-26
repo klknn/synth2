@@ -293,10 +293,15 @@ private:
         rectangle(chorusFeedback.max.x + marginW,
                   chorusTime.max.y + marginH, knobRad, knobRad),
         "levl");
+    auto chorusWidth = _buildKnob(
+        _param!(Params.chorusWidth),
+        rectangle(chorusLevel.max.x + marginW,
+                  chorusTime.max.y + marginH, knobRad, knobRad),
+        "widh");
     return expand(label.position, on,
                   _chorusMulti.position, multiLabel.position,
                   chorusTime, chorusDepth, chorusRate,
-                  chorusFeedback, chorusLevel);
+                  chorusFeedback, chorusLevel, chorusWidth);
   }
 
   box2i _buildDelay(int x, int y) {

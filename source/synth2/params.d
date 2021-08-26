@@ -126,6 +126,7 @@ enum Params : int {
   chorusRate,
   chorusFeedback,
   chorusLevel,
+  chorusWidth,
 }
 
 static immutable paramNames = [__traits(allMembers, Params)];
@@ -537,8 +538,8 @@ struct ParamBuilder {
   }
 
   static chorusRate() {
-    return mallocNew!LinearFloatParameter(
-        Params.chorusRate, "Chorus/Rate", "hz", 0, 20, 0.3);
+    return mallocNew!LogFloatParameter(
+        Params.chorusRate, "Chorus/Rate", "hz", logBias, 20, 0.86);
   }
 
   static chorusFeedback() {
@@ -547,8 +548,13 @@ struct ParamBuilder {
   }
 
   static chorusLevel() {
+    return mallocNew!GainParameter(
+        Params.chorusLevel, "Chorus/Level", 5, 0.28);
+  }
+
+  static chorusWidth() {
     return mallocNew!LinearFloatParameter(
-        Params.chorusLevel, "Chorus/Level", "", 0, 1, 0.28);
+        Params.chorusWidth, "Chorus/Width", "", 0, 1, 0);
   }
 
   @nogc nothrow:

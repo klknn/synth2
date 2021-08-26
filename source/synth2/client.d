@@ -301,11 +301,13 @@ class Synth2Client : Client {
 
     // Setup chorus.
     // TODO: support Params.chorusMulti and width.
-    const chorusLevel = readParam!float(Params.chorusLevel);
+    const chorusLevel = convertDecibelToLinearGain(
+        readParam!float(Params.chorusLevel));
     const chorusOn = readParam!bool(Params.chorusOn) && chorusLevel > 0;
     if (chorusOn) {
       _chorus.setParams(
           readParam!int(Params.chorusMulti),
+          readParam!float(Params.chorusWidth),
           readParam!float(Params.chorusTime),
           readParam!float(Params.chorusFeedback),
           readParam!float(Params.chorusDepth),
@@ -850,10 +852,12 @@ unittest {
   // TODO: test On/Off sound diff.
   host.setParam!(Params.chorusOn)(true);
   host.setParam!(Params.chorusLevel)(1.0);
+  host.setParam!(Params.chorusMulti)(2);
   assert(host.paramChangeOutputs!(Params.chorusMulti)(4));
   assert(host.paramChangeOutputs!(Params.chorusTime)(40));
   assert(host.paramChangeOutputs!(Params.chorusDepth)(0.5));
   assert(host.paramChangeOutputs!(Params.chorusRate)(20));
   assert(host.paramChangeOutputs!(Params.chorusFeedback)(1));
   assert(host.paramChangeOutputs!(Params.chorusLevel)(1));
+  assert(host.paramChangeOutputs!(Params.chorusWidth)(1));
 }
