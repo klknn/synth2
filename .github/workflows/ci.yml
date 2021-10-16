@@ -2,11 +2,14 @@ name: ci
 
 on:
   push:
+  # Nightly builds
+  schedule:
+    - cron: '00 00 * * *'
 
 # Common variables for all platforms (ldc is hardcoded in windows job)
 env:
   VST2_SDK: ${{ github.workspace }}/VST2_SDK
-  SETUP_VST2_SDK: false
+  SETUP_VST2_SDK: true
   # List of commands
   DPlugBuild: ${{ github.workspace }}/Dplug/tools/dplug-build/dplug-build
   DplugProcess: ${{ github.workspace }}/Dplug/tools/process/process
@@ -75,21 +78,10 @@ jobs:
         dub build
       working-directory: ./Dplug/tools/dplug-build
 
-
-
     - name: Setup VST2_SDK
       if: contains(env.SETUP_VST2_SDK, 'true') && steps.dplug-cache.outputs.cache-hit != 'true'
       run: |
-        curl -LOJ https://www.steinberg.net/sdk_downloads/vstsdk366_27_06_2016_build_61.zip
-        7z x ./vstsdk366_27_06_2016_build_61.zip
-        mkdir -p ${{ env.VST2_SDK }}/pluginterfaces/vst2.x
-        cp "./VST3 SDK/pluginterfaces/vst2.x/aeffect.h" ${{ env.VST2_SDK }}/pluginterfaces/vst2.x/aeffect.h
-        cp "./VST3 SDK/pluginterfaces/vst2.x/aeffectx.h" ${{ env.VST2_SDK }}/pluginterfaces/vst2.x/aeffectx.h
-
-    - name: Setup VST2_SDK
-      if: contains(env.SETUP_VST2_SDK, 'true') && steps.dplug-cache.outputs.cache-hit != 'true'
-      run: |
-        curl -LOJ https://www.steinberg.net/sdk_downloads/vstsdk366_27_06_2016_build_61.zip
+        curl -LOJ https://web.archive.org/web/20200502121517if_/https://www.steinberg.net/sdk_downloads/vstsdk366_27_06_2016_build_61.zip
         7z x ./vstsdk366_27_06_2016_build_61.zip
         mkdir -p ${{ env.VST2_SDK }}/pluginterfaces/vst2.x
         cp "./VST3 SDK/pluginterfaces/vst2.x/aeffect.h" ${{ env.VST2_SDK }}/pluginterfaces/vst2.x/aeffect.h
@@ -106,11 +98,11 @@ jobs:
     - name: Build synth2
       run: |
         if ("${{ matrix.os }}" -like 'windows*') {
-          $Plugins = "-c VST3"
+          $Plugins = "-c VST2 -c VST3"
         } elseif ("${{ matrix.os }}" -like 'macOS*') {
-          $Plugins = "-c VST3 -c AU"
+          $Plugins = "-c VST2 -c VST3 -c AU"
         } elseif ("${{ matrix.os }}" -like 'ubuntu*') {
-          $Plugins = "-c VST3 -c LV2"
+          $Plugins = "-c VST2 -c VST3 -c LV2"
         }
         $esc = '--%'
         ${{ env.DPlugBuild }} $esc $Plugins --final
