@@ -41,7 +41,7 @@ jobs:
       run: |
         dub test -b=unittest-cov
 
-    - uses: codecov/codecov-action@v1
+    - uses: codecov/codecov-action@v2
 
   Skip:
     if: "contains(github.event.head_commit.message, '[skip ci]')"
