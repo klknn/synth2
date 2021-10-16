@@ -49,14 +49,14 @@ jobs:
 
     # Cache
     - name: Cache
-      id: dplug-cache
+      id: vst2sdk
       uses: actions/cache@v2
       env:
-        cache-name: dplug-cache
+        cache-name: vst2sdk
       with:
         path: |
           ${{ env.VST2_SDK }}
-        key: dplug-cache
+        key: vst2sdk
 
     # Install
     - name: Install Dependencies - Ubuntu
@@ -107,7 +107,6 @@ jobs:
         $esc = '--%'
         ${{ env.DPlugBuild }} $esc $Plugins --final
       working-directory: .
-
 
     # Upload
     # This task uploads the builds directory that contains all artifacts produced by dplug-build
