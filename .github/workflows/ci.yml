@@ -49,14 +49,14 @@ jobs:
 
     # Cache
     - name: Cache
-      id: vst2sdk
+      id: synth2-cache
       uses: actions/cache@v2
       env:
-        cache-name: vst2sdk
+        cache-name: synth2-cache
       with:
         path: |
           ${{ env.VST2_SDK }}
-        key: vst2sdk
+        key: synth2-cache
 
     # Install
     - name: Install Dependencies - Ubuntu
@@ -79,7 +79,7 @@ jobs:
       working-directory: ./Dplug/tools/dplug-build
 
     - name: Setup VST2_SDK
-      if: contains(env.SETUP_VST2_SDK, 'true') && steps.dplug-cache.outputs.cache-hit != 'true'
+      if: contains(env.SETUP_VST2_SDK, 'true') && steps.synth2-cache.outputs.cache-hit != 'true'
       run: |
         curl -LOJ https://web.archive.org/web/20200502121517if_/https://www.steinberg.net/sdk_downloads/vstsdk366_27_06_2016_build_61.zip
         7z x ./vstsdk366_27_06_2016_build_61.zip
