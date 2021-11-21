@@ -2,16 +2,20 @@ module synth2.delay;
 
 import synth2.ringbuffer : RingBuffer;
 
+/// Maximum delay interval in seconds.
 enum maxDelaySec = 10.0f;
 
+/// Kind of delay stereo effects.
 enum DelayKind {
   st, // normal stereo
   x,  // cross feedback
   pp, // pingpong
 }
 
+/// String names of delay kinds.
 static immutable delayNames = [__traits(allMembers, DelayKind)];
 
+/// Delay effect.
 struct Delay {
   @nogc nothrow pure:
 
@@ -33,6 +37,11 @@ struct Delay {
         cast(size_t) (delayFrames * (_kind == DelayKind.pp ? 1 : 1 / 1.5)));
   }
 
+  /// Applies delay effect.
+  /// Params:
+  ///   x = dry stereo input.
+  /// Returns:
+  ///   wet delayed output.
   float[2] apply(float[2] x...) {
     float[2] y;
     y[0] = _buffers[0].front;
@@ -52,12 +61,12 @@ struct Delay {
   DelayKind _kind;
   RingBuffer!float[2] _buffers;
   float _feedback = 0;
-  float _sampleRate = 44100;
+  float _sampleRate = 44_100;
 }
 
 unittest {
   Delay dly;
-  dly.setSampleRate(44100);
+  dly.setSampleRate(44_100);
   dly.setParams(DelayKind.st, 0.5, 0, 0);
   assert(dly.apply(1f, 2f) == [0f, 0f]);
 

@@ -2,8 +2,14 @@ module synth2.ringbuffer;
 
 import core.memory : pureFree, pureRealloc;
 
-/// @nogc/nothrow ring buffer.
+/// nogc nothrow ringbufer.
+/// Params:
+///   T = element type.
 struct RingBuffer(T) {
+
+  /// Reallocates memory.
+  /// Params:
+  ///   n = #elements (not #bytes).
   void recalloc(size_t n) {
     if (n == _capacity) return;
     _ptr = cast(T*) pureRealloc(_ptr, n * T.sizeof);
@@ -12,14 +18,19 @@ struct RingBuffer(T) {
     this.clear();
   }
 
+  /// Clears payload.
   void clear() {
     _ptr[0 .. _capacity] = 0;
   }
 
   ~this() { pureFree(_ptr); }
 
+  /// Returns: the head element.
   T front() const { return _ptr[_front_idx]; }
 
+  /// Enqueues a new value.
+  /// Params:
+  ///   val = new element.
   void enqueue(T val) {
     _ptr[_back_idx] = val;
     _back_idx = (_back_idx + 1) % _capacity;
@@ -27,6 +38,8 @@ struct RingBuffer(T) {
   }
 
   /// Resizes the buffer. Initializes values to 0 if newlen > capacity.
+  /// Params:
+  ///   newlen = new length.
   void resize(size_t newlen) {
     assert(newlen <= _capacity, "capacity exceeded");
     // Ignore newlen in release mode.
@@ -38,6 +51,7 @@ struct RingBuffer(T) {
         : _capacity - (newlen - _back_idx);
   }
 
+  /// Returns: buffer length.
   size_t length() const {
     return _front_idx < _back_idx
         ? _back_idx - _front_idx

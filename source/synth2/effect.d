@@ -51,6 +51,7 @@ abstract class BaseDistortion : IEffect {
     return _lpf.apply(distort(_gain * x) / 10);
   }
 
+  /// Applies distortion.
   abstract float distort(float x) const;
  private:
   float _gain;
@@ -169,13 +170,17 @@ class Compressor : IEffect {
   float _attack;
 }
 
-/// Phase effect.
+/// Phase effect. WIP TODO: add LFOs.
+/// Params:
+///   n = number of the phase effects.
 /// See_also:
 ///   https://ccrma.stanford.edu/realsimple/DelayVar/Phasing_First_Order_Allpass_Filters.html
 class Phaser(size_t n) : IEffect {
  public:
   nothrow @nogc:
   /// Sets the sample rate from host.
+  /// Params:
+  ///   sampleRate = sampling rate.
   void setSampleRate(float sampleRate) {
     foreach (ref f; _filters) {
       f.setSampleRate(sampleRate);
@@ -194,6 +199,9 @@ class Phaser(size_t n) : IEffect {
   }
 
   /// Applies the effect configured by ctrl1/2.
+  /// Params:
+  ///   x = the current mono input.
+  /// Returns: output with modulated phase.
   float apply(float x) {
     float y = x;
     foreach (ref f; _filters) {
@@ -271,7 +279,7 @@ unittest {
   MultiEffect efx = mallocNew!MultiEffect;
   scope (exit) destroyFree(efx);
 
-  efx.setSampleRate(44000);
+  efx.setSampleRate(44_100);
   foreach (e; EnumMembers!EffectKind) {
     efx.setEffectKind(e);
     efx.setParams(0.5, 0.5);

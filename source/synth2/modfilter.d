@@ -14,12 +14,21 @@ import synth2.filter;
 
 /// Filter with MIDI and ADSR modulation.
 struct ModFilter {
+  /// Filter to be modurated.
   Filter filter;
+
+  /// Modulating envelope.
   ADSR envelope;
+
   alias filter this;
 
+  /// Use MIDI velocity for scaling the envelope. 
   bool useVelocity = false;
+
+  /// Constant scaling factor for the envelope.
   float envAmount = 0;
+
+  /// Constant scaling factor for MIDI frequency.
   float trackAmount = 0;
 
   @nogc nothrow pure @safe @fastmath:
@@ -41,6 +50,7 @@ struct ModFilter {
     this.cutoffDiff = diff;
   }
 
+  /// Increments envlope timestamp.
   void popFront() {
     const cutoff = fmax(0f, fmin(1f, this.cutoff + this.cutoffDiff + this.track +
                                  this.velocity * this.envelope.front));

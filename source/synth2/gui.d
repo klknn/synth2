@@ -25,7 +25,7 @@ import synth2.filter : filterNames;
 import synth2.params : typedParam, Params, menvDestNames, lfoDestNames, voiceKindNames, maxPoly;
 
 // TODO: CTFE formatted names from enum values.
-static immutable mulNames = {
+private static immutable mulNames = {
   import std.traits : EnumMembers;
   import std.format : format;
   import std.conv : to;
@@ -43,9 +43,9 @@ unittest {
   assert(mulNames[Multiplier.tri] == "0.3");
 }
 
-enum png1 = "114.png"; // "gray.png"; // "black.png"
-enum png2 = "black.png";
-enum png3 = "black.png";
+private enum png1 = "114.png"; // "gray.png"; // "black.png"
+private enum png2 = "black.png";
+private enum png3 = "black.png";
 
 
 // https://all-free-download.com/font/download/display_free_tfb_10784.html
@@ -55,10 +55,10 @@ enum png3 = "black.png";
 // https://www.google.com/get/noto/#mono-mono
 // static string _fontRaw = import("NotoMono-Regular.ttf");
 // https://all-free-download.com/font/download/forced_square_14817.html
-static string _fontRaw = import("FORCED SQUARE.ttf");
+private static string _fontRaw = import("FORCED SQUARE.ttf");
 
 /// Expands box to include all positions.
-box2i expand(box2i[] positions...) nothrow @nogc pure @safe {
+private box2i expand(box2i[] positions...) nothrow @nogc pure @safe {
   box2i ret = positions[0];
   foreach (p; positions) {
     ret = ret.expand(p);
@@ -75,13 +75,13 @@ unittest {
 
 /// width getter
 @nogc nothrow
-auto width(UIElement label) {
+private auto width(UIElement label) {
   return label.position.width;
 }
 
 /// width setter
 @nogc nothrow
-void width(UIElement label, int width) {
+private void width(UIElement label, int width) {
   auto p = label.position;
   p.width(width);
   label.position(p);
@@ -95,37 +95,14 @@ unittest {
   assert(label.width == 1);
 }
 
-version (unittest) {} else:;
-
+version (unittest) {} else:
+                        
+/// GUI class.
 class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParameterListener {
  public:
   nothrow @nogc:
 
-  enum marginW = 5;
-  enum marginH = 5;
-  enum screenWidth = 640;
-  enum screenHeight = 480;
-
-  enum fontLarge = 16;
-  enum fontMedium = 12;
-  enum fontMediumW = cast(int) (fontMedium * 0.8);
-  enum fontSmall = 9;
-  enum fontSmallW = cast(int) (fontSmall * 0.8);
-
-  enum knobRad = 25;
-  enum slideWidth = 40;
-  enum slideHeight = 100;
-
-  enum litTrailDiffuse = RGBA(99, 61, 24, 20);
-  enum handleDiffuse = RGBA(240, 127, 17, 40);
-  enum unlitTrailDiffuse = RGBA(29, 29, 29, 20);
-  enum fontColor = RGBA(253, 250, 243, 0);
-  enum knobDiffuse = RGBA(65, 65, 65, 0); // RGBA(216, 216, 216, 0);
-  enum litSwitchOn = 40;
-
-  static immutable pitchLabels = ["-12", "-6", "0", "6", "12"];
-  static immutable waveNames = ["sin", "saw", "pls", "tri", "rnd"];
-
+  ///
   this(Parameter[] parameters) {
     setUpdateMargin(0);
 
@@ -137,7 +114,7 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
 
     static immutable float[7] ratios = [0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f];
     super(makeSizeConstraintsDiscrete(screenWidth, screenHeight, ratios));
-    int x, y;
+    int y;
 
     // header
     y = marginH;
@@ -149,36 +126,40 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
 
     enum marginWSec = marginW * 5;
 
-    auto osc = _buildOsc(marginW, _synth2.position.max.y + marginH);
+    const osc = _buildOsc(marginW, _synth2.position.max.y + marginH);
 
-    auto master = _buildMaster(osc.max.x + marginWSec, osc.min.y);
+    const master = _buildMaster(osc.max.x + marginWSec, osc.min.y);
 
-    auto menv = _buildModEnv(master.min.x, master.max.y + marginH * 3);
+    const menv = _buildModEnv(master.min.x, master.max.y + marginH * 3);
 
-    auto ampEnv = _buildADSR(master.max.x + marginWSec, osc.min.y, "AmpEnv",
+    const ampEnv = _buildADSR(master.max.x + marginWSec, osc.min.y, "AmpEnv",
                              Params.ampAttack);
 
-    auto filterEnv = _buildADSR(ampEnv.min.x, ampEnv.max.y,
-                                "FilterEnv", Params.filterAttack);
+    // const filterEnv =
+    _buildADSR(ampEnv.min.x, ampEnv.max.y,
+               "FilterEnv", Params.filterAttack);
 
-    auto filter = _buildFilter(menv.max.x + marginWSec, menv.min.y);
+    const filter = _buildFilter(menv.max.x + marginWSec, menv.min.y);
 
-    auto effect = _buildEffect(ampEnv.max.x + marginWSec, ampEnv.min.y);
+    const effect = _buildEffect(ampEnv.max.x + marginWSec, ampEnv.min.y);
 
-    auto eq = _buildEQ(effect.max.x + marginWSec, effect.min.y);
+    // const eq =
+    _buildEQ(effect.max.x + marginWSec, effect.min.y);
+    
+    const delay = _buildDelay(filter.max.x + marginWSec, effect.max.y + marginH * 3);
 
-    auto delay = _buildDelay(filter.max.x + marginWSec, effect.max.y + marginH * 3);
+    // const chorus =
+    _buildChorus(delay.max.x + marginWSec, delay.min.y);
 
-    auto chorus = _buildChorus(delay.max.x + marginWSec, delay.min.y);
-
-    auto lfo1 = _buildLFO!(cast(Params) 0)(
+    const lfo1 = _buildLFO!(cast(Params) 0)(
         "LFO1", osc.min.x, osc.max.y + marginH);
 
-    auto lfo2 = _buildLFO!(Params.lfo2Dest - Params.lfo1Dest)(
+    const lfo2 = _buildLFO!(Params.lfo2Dest - Params.lfo1Dest)(
         "LFO2", lfo1.max.x + marginWSec, lfo1.min.y);
 
-    auto voice = _buildVoice(lfo2.max.x + marginWSec, lfo2.min.y);
-
+    // const voice =
+    _buildVoice(lfo2.max.x + marginWSec, lfo2.min.y);
+    
     addChild(_resizerHint = mallocNew!UIWindowResizer(this.context()));
 
     _defaultRects = makeVec!box2i(_children.length);
@@ -198,8 +179,8 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
   override void reflow() {
     super.reflow();
 
-    int W = position.width;
-    int H = position.height;
+    const int W = position.width;
+    const int H = position.height;
     float S = W / cast(float)(context.getDefaultUIWidth());
     foreach (i, child; _children) {
       child.position(_defaultRects[i].scaleByFactor(S));
@@ -229,7 +210,8 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
     _chorusMulti.text(cast(string) _chorusMultiStr[]);
   }
 
-  // TODO: create a new UILabel with IParameterListner for IntegerParameter.
+  /// Listens to parameter sender.
+  /// TODO: create a new UILabel with IParameterListner for IntegerParameter.
   void onParameterChanged(Parameter sender) {
     if (sender.index == Params.voicePoly) {
       if (auto polyParam = cast(IntegerParameter) sender) {
@@ -243,9 +225,11 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
     }
   }
 
-  void onBeginParameterEdit(Parameter sender) {}
+  ///
+  void onBeginParameterEdit(Parameter) {}
 
-  void onEndParameterEdit(Parameter sender) {}
+  ///
+  void onEndParameterEdit(Parameter) {}
 
 private:
 
@@ -357,7 +341,8 @@ private:
     auto port = _buildKnob(
         typedParam!(Params.voicePortament)(_params),
         rectangle(x, poly.max.y + marginH, knobRad, knobRad), "port");
-    auto portAuto = _buildSwitch(
+    // const portAuto =
+    _buildSwitch(
         _param!(Params.voicePortamentAuto),
         rectangle(port.max.x + marginW, port.min.y, knobRad, knobRad),
         "auto");
@@ -752,6 +737,32 @@ private:
     return label;
   }
 
+
+  enum marginW = 5;
+  enum marginH = 5;
+  enum screenWidth = 640;
+  enum screenHeight = 480;
+
+  enum fontLarge = 16;
+  enum fontMedium = 12;
+  enum fontMediumW = cast(int) (fontMedium * 0.8);
+  enum fontSmall = 9;
+  enum fontSmallW = cast(int) (fontSmall * 0.8);
+
+  enum knobRad = 25;
+  enum slideWidth = 40;
+  enum slideHeight = 100;
+
+  enum litTrailDiffuse = RGBA(99, 61, 24, 20);
+  enum handleDiffuse = RGBA(240, 127, 17, 40);
+  enum unlitTrailDiffuse = RGBA(29, 29, 29, 20);
+  enum fontColor = RGBA(253, 250, 243, 0);
+  enum knobDiffuse = RGBA(65, 65, 65, 0); // RGBA(216, 216, 216, 0);
+  enum litSwitchOn = 40;
+
+  static immutable pitchLabels = ["-12", "-6", "0", "6", "12"];
+  static immutable waveNames = ["sin", "saw", "pls", "tri", "rnd"];
+  
   Font _font;
   UILabel _tempo, _synth2, _date;
   char[10] _tempoStr;

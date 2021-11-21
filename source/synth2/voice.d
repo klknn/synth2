@@ -13,34 +13,44 @@ import synth2.envelope : ADSR;
 /// Voice stack for storing previous voices for legato.
 struct VoiceStack {
   @nogc nothrow @safe pure:
-  int[128] data;
-  bool[128] on;
-  int idx;
 
+  /// Returns: true if no voice is stacked.
   bool empty() const { return idx < 0; }
 
+  /// Stacks new note.
+  /// Params:
+  ///   note = MIDI note number [0, 127].
   void push(int note) {
-    if (idx == data.length - 1) return;
+    if (idx + 1 == data.length) return;
     data[++idx] = note;
     on[note] = true;
   }
 
+  /// Returns: the last played MIDI note number.
   int front() const {
     // TODO: assert(!empty);
     return empty ? data[0] : data[idx];
   }
 
+  /// Resets stack.
   void reset() {
     idx = -1;
     on[] = false;
   }
 
+  /// Pops the last MIDI note from stack.
   void popFront() pure {
     while (!empty) {
       --idx;
       if (on[this.front]) return;
     }
   }
+
+ private:
+  int[128] data;
+  bool[128] on;
+  int idx;
+
 }
 
 /// Mono voice status.
@@ -113,7 +123,7 @@ struct VoiceStatus {
   }
 
  private:
-  float _sampleRate = 44100;
+  float _sampleRate = 44_100;
   float _notePrev = -1;
   float _gain = 1f;
 

@@ -10,7 +10,8 @@ import std.traits : EnumMembers;
 
 import dplug.core.nogc : destroyFree, mallocNew;
 import dplug.core.vec : makeVec, Vec;
-import dplug.client.params : BoolParameter, EnumParameter, GainParameter, IntegerParameter, LinearFloatParameter, LogFloatParameter, Parameter;
+import dplug.client.params : BoolParameter, EnumParameter, GainParameter,
+  IntegerParameter, LinearFloatParameter, LogFloatParameter, Parameter;
 import mir.math.constant : PI;
 
 import synth2.delay : DelayKind, delayNames;
@@ -568,7 +569,11 @@ struct ParamBuilder {
   }
 }
 
-/// Gets statically-known typed param from base class array.
+/// Casts types from untyped parameters using parameter id.
+/// Params:
+///   pid = Params enum id.
+///   params = type-erased parameter array.
+/// Returns: statically-known typed param.
 auto typedParam(Params pid)(Parameter[] params) {
   alias T = typeof(__traits(getMember, ParamBuilder, paramNames[pid])());
   auto ret = cast(T) params[pid];
@@ -581,6 +586,5 @@ auto typedParam(Params pid)(Parameter[] params) {
 unittest {
   Parameter[1] ps;
   ps[0] = ParamBuilder.osc1Waveform();
-  auto actual = typedParam!(Params.osc1Waveform)(ps[]);
-  static assert(is(typeof(actual) == EnumParameter));
+  assert(is(typeof(typedParam!(Params.osc1Waveform)(ps[])) == EnumParameter));
 }

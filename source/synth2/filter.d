@@ -14,6 +14,7 @@ import mir.math : approxEqual, PI, SQRT2, fmax;
 
 @nogc nothrow @safe pure:
 
+/// Kinds of filter implentations.
 enum FilterKind {
   HP6,
   HP12,
@@ -26,11 +27,17 @@ enum FilterKind {
   LPDL,
 }
 
+/// String names of filter implementations.
 static immutable filterNames = [__traits(allMembers, FilterKind)];
 
+///
 struct Filter {
   @nogc nothrow @safe pure:
 
+  /// Applies filtering.
+  /// Params:
+  ///   input = input wave frame.
+  /// Returns: filtered wave frame.
   float apply(float input) {
     // TODO: use ring buffer
     foreach_reverse (i; 1 .. nFIR) {
@@ -88,6 +95,8 @@ struct Filter {
     }
     const T = 1 / sampleRate;
     const w0 = 2 * PI * freq * sampleRate;
+    assert(T != float.nan);
+    assert(w0 != float.nan);
     final switch (kind) {
       mixin(import("filter_coeff.d"));
     }
@@ -95,7 +104,7 @@ struct Filter {
 
  private:
   FilterKind kind = FilterKind.LP12;
-  float sampleRate = 44100;
+  float sampleRate = 44_100;
   // filter and prev inputs
   float[5] b, x;
   // filter and prev outputs
@@ -135,7 +144,7 @@ struct AllPassFilter {
 
   float g = 0.5, py = 0, px = 0;
 
-  void setSampleRate(float sampleRate) {
+  void setSampleRate(float) {
     py = 0;
     px = 0;
   }

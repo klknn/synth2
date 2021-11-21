@@ -10,13 +10,14 @@ import mir.math.common : fabs, log, fmax, exp;
 
 import synth2.filter : Filter, FilterKind;
 
-enum bias = 1e-6;
+private enum bias = 1e-6;
 
 /// tone [0, 1] -> [bias, 1] via log curve
-float logTransform(float x) @nogc nothrow pure @safe {
+private float logTransform(float x) @nogc nothrow pure @safe {
   return exp(-(x + bias) * log(bias)) * bias;
 }
 
+/// Equalizer.
 struct Equalizer {
   @nogc nothrow pure @safe:
 
@@ -38,6 +39,10 @@ struct Equalizer {
     }
   }
 
+  /// Applies equalizer.
+  /// Params:
+  ///   x = input wave frame.
+  /// Returns: equalized output wave frame.
   float apply(float x) {
     if (_level != 0) {
       x += _level * _bs.apply(x);

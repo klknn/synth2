@@ -19,22 +19,17 @@ enum Waveform {
   noise,
 }
 
+/// String names of waveforms.
 static immutable waveformNames = [__traits(allMembers, Waveform)];
 
 /// Waveform range.
 struct WaveformRange {
-  float freq = 440;
-  float phase = 0;  // [0 .. 2 * PI]
-  float normalized = false;
-  float sampleRate = 44100;
-  float pulseWidth = 0.5;
-  Waveform waveform = Waveform.sine;
-  static rng = Xoshiro128StarStar_32(0u);
+  @safe nothrow @nogc:
 
-  @safe nothrow @nogc @fastmath:
-
+  /// Infinite range method.
   enum empty = false;
 
+  /// Returns: the current wave value.
   float front() const {
     final switch (this.waveform) {
       case Waveform.saw:
@@ -50,6 +45,9 @@ struct WaveformRange {
     }
   }
 
+  /// Increments timestamp of osc.
+  /// Params:
+  ///   n = #frames.
   pure void popFront(long n = 1) {
     this.phase += this.freq * 2 * PI / this.sampleRate * n;
     this.normalized = false;
@@ -58,6 +56,22 @@ struct WaveformRange {
       this.normalized = true;
     }
   }
+
+  ///
+  float freq = 440;
+  ///
+  float sampleRate = 44_100;
+  ///
+  Waveform waveform = Waveform.sine;
+  ///
+  float phase = 0;  // [0 .. 2 * PI]
+  ///
+  float normalized = false;
+  ///
+  float pulseWidth = 0.5;
+  
+ private:  
+  static rng = Xoshiro128StarStar_32(0u);
 }
 
 ///

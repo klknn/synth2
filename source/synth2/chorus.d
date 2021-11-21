@@ -7,6 +7,7 @@ import synth2.lfo : LFO, Multiplier;
 import synth2.waveform : Waveform;
 
 
+/// Chorus adds short modurated delay sounds.
 struct Chorus {
   @nogc nothrow:
 
@@ -22,6 +23,11 @@ struct Chorus {
     _lfo.setParams(Waveform.sine, false, rate / 10, Multiplier.none, TimeInfo.init);
   }
 
+  /// Applies chorus effect.
+  /// Params:
+  ///   x = dry stereo input.
+  /// Returns:
+  ///   wet modulated chorus output.
   float[2] apply(float[2] x...) {
     auto msecsMod = _msecs + (_lfo.front + 1) * _depth;
     _lfo.popFront();

@@ -7,7 +7,6 @@
 module synth2.lfo;
 
 import std.algorithm.comparison : min;
-import std.math : approxEqual;
 import std.traits : EnumMembers;
 
 import dplug.client.client : TimeInfo;
@@ -37,16 +36,23 @@ enum Multiplier {
   tri,
 }
 
+/// String names of Multiplier.
 static immutable multiplierNames = [__traits(allMembers, Multiplier)];
+
+/// Multiplier conversions to float.
 static immutable float[multiplierNames.length] mulToFloat = [
     Multiplier.dot: 1.5f, Multiplier.none: 1f, Multiplier.tri: 1f / 3 ];
 
+/// Inteval for notes.
 struct Interval {
+  ///
   Bar bar;
+  ///
   Multiplier mul;
 
   @nogc nothrow pure @safe:
 
+  /// Returns: float interval value in bar.
   float toFloat() const {
     return bar * mulToFloat[mul];
   }
@@ -56,11 +62,17 @@ struct Interval {
 
 @nogc nothrow pure @safe
 unittest {
+  import std.math : isClose;
+
   assert(Interval(Bar.x1_8, Multiplier.none).toFloat == 1f / 8);
   assert(Interval(Bar.x1_8, Multiplier.dot).toFloat == 1f / 8 * 1.5);
-  assert(approxEqual(Interval(Bar.x1_8, Multiplier.tri).toFloat, 1f / 8 / 3));
+  assert(isClose(Interval(Bar.x1_8, Multiplier.tri).toFloat, 1f / 8 / 3));
 }
 
+/// Converts a float value into an Interval object.
+/// Params:
+///   x = float value.
+/// Returns: Interval.
 @nogc nothrow pure @safe
 Bar toBar(float x) {
   assert(0 <= x && x <= 1);
@@ -75,6 +87,11 @@ unittest {
   assert(0.toBar == Bar.x32);
 }
 
+/// Converts interval object with tempo to seconds.
+/// Params:
+///   i = interval object.
+///   tempo = host tempo.
+/// Returns: seconds.
 float toSeconds(Interval i, float tempo) @nogc nothrow pure @safe {
   // bars / 4 (beat sec) * 60 (beat min) / bpm
   return i.toFloat / 4 * 60 / tempo;
@@ -124,8 +141,12 @@ struct LFO {
     }
   }
 
+  /// Returns: the current LFO amplitude.
   float front() const { return _wave.front; }
+
+  /// Increments LFO timestamp.
   void popFront() pure { _wave.popFront(); }
+
   alias empty = _wave.empty;
 
  private:

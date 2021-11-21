@@ -15,13 +15,22 @@ import synth2.voice : VoiceStatus;
 
 @safe nothrow @nogc:
 
-/// Maps 0 to 127 into [0, 1] level with affine transformation.
+/// Converts MIDI velocity to gain.
+/// Params:
+///   velocity = MIDI velocity [0, 127].
+///   sensitivity = gain sensitivity.
+///   bias = gain bias.
+/// Returns: Maps 0 to 127 into [0, 1] level with affine transformation.
 float velocityToLevel(
     float velocity, float sensitivity = 1.0, float bias = 0.1) @fastmath pure {
   assert(0 <= velocity && velocity <= 127);
   return (velocity / 127f - bias) * sensitivity + bias;
 }
 
+/// Converts MIDI note to frequency.
+/// Params:
+///   note = MIDI note number [0, 127].
+/// Returns: frequency [Hz].
 float convertMIDINoteToFrequency(float note) @fastmath pure {
     return 440.0f * exp2((note - 69.0f) / 12.0f);
 }
@@ -87,6 +96,9 @@ struct Oscillator
     _noteDetune = val;
   }
 
+  /// Syncronize osc phase to the given src osc phase.
+  /// Params:
+  ///   src = modulating osc.
   void synchronize(const ref Oscillator src) pure {
     foreach (i, ref w; _waves) {
       if (src._waves[i].normalized) {
@@ -107,9 +119,10 @@ struct Oscillator
     }
   }
 
+  /// Infinite range method.
   enum empty = false;
 
-  /// Returns sum of amplitudes of _waves at the current phase.
+  /// Returns: sum of amplitudes of _waves at the current phase.
   float front() const {
     float sample = 0;
     foreach (i, ref v; _voices) {
@@ -137,6 +150,7 @@ struct Oscillator
     }
   }
 
+  /// Returns: true if any voices are playing.
   bool isPlaying() const pure {
     foreach (ref v; _voices) {
       if (v.isPlaying) return true;
@@ -144,6 +158,7 @@ struct Oscillator
     return false;
   }
 
+  /// Returns: the waveform object used last.
   WaveformRange lastUsedWave() const pure {
     return _waves[_lastUsedId];
   }

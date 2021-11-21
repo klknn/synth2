@@ -22,19 +22,24 @@ enum Stage {
 
 /// Attack, Decay, Sustain, Release.
 struct ADSR {
-  // public mutable fields
+  /// Attack time in #frames.
   float attackTime = 0;
+  /// Decay time in #frames.
   float decayTime = 0;
+  /// Sustain level within [0, 1].
   float sustainLevel = 1;
+  /// Release time in #frames.
   float releaseTime = 0;
 
   @nogc nothrow @safe pure @fastmath:
 
+  /// Triggers the atack stage.
   void attack() {
     _stage = Stage.attack;
     _stageTime = 0;
   }
 
+  /// Triggers the release stage.
   void release() {
     _releaseLevel = this.front;
     _stage = Stage.release;
@@ -48,9 +53,10 @@ struct ADSR {
     _nplay = 0;
   }
 
+  /// Returns: true if envelope was ended.
   bool empty() const { return _stage == Stage.done; }
 
-  /// Returns an amplitude of the linear envelope.
+  /// Returns: an amplitude of the linear envelope.
   float front() const {
     final switch (_stage) {
       case Stage.attack:
@@ -114,7 +120,7 @@ struct ADSR {
 
  private:
   Stage _stage = Stage.done;
-  float _frameWidth = 1.0 / 44100;
+  float _frameWidth = 1.0 / 44_100;
   float _stageTime = 0;
   float _releaseLevel;
   int _nplay = 0;

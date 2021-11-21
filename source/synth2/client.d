@@ -45,8 +45,7 @@ class Synth2Client : Client {
  public:
   nothrow @nogc @fastmath:
 
-  enum nLFO = 2;
-
+  /// ctor.
   this() {
     super();
     _effect = mallocNew!MultiEffect;
@@ -109,8 +108,11 @@ class Synth2Client : Client {
   override void processAudio(const(float*)[] inputs, float*[] outputs,
                              int frames, TimeInfo info) {
     // TODO: update tempo by a parameter listener.
-    version (unittest) {} else if (_gui) {
-      _gui.setTempo(info.tempo);
+    version (unittest) {
+    } else {
+      if (_gui) {
+        _gui.setTempo(info.tempo);
+      }
     }
 
     const poly = readParam!int(Params.voicePoly);
@@ -427,6 +429,7 @@ class Synth2Client : Client {
   }
 
  private:
+  enum nLFO = 2;
   MultiChorus _chorus;
   Delay _delay;
   LFO[nLFO] _lfos;
@@ -441,7 +444,7 @@ class Synth2Client : Client {
 
 
 /// Mock host for testing Synth2Client.
-struct TestHost {
+private struct TestHost {
   Synth2Client client;
   int frames = 8;
   Vec!float[2] outputFrames;
@@ -453,10 +456,11 @@ struct TestHost {
   @nogc nothrow:
 
   /// Sets param to test.
-  void setParam(Params pid, T)(T val) {
+  private void setParam(Params pid, T)(T val) {
     auto p = __traits(getMember, ParamBuilder, paramNames[pid]);
     static if (is(T == enum)) {
       double v;
+      v = double.init;  // for d-scanner.
       static immutable names = [__traits(allMembers, T)];
       assert(p.normalizedValueFromString(names[val], v));
     }
@@ -479,7 +483,7 @@ struct TestHost {
   void processAudio() {
     outputFrames[0].resize(this.frames);
     outputFrames[1].resize(this.frames);
-    client.reset(44100, 32, 0, 2);
+    client.reset(44_100, 32, 0, 2);
 
     float*[2] inputs, outputs;
     inputs[0] = null;
@@ -500,7 +504,7 @@ struct TestHost {
 
   /// Returns true iff the val changes outputs of processAudio.
   bool paramChangeOutputs(Params pid, T)(T val) {
-    double origin = this.client.param(pid).getForHost;
+    const double origin = this.client.param(pid).getForHost;
 
     // 1st trial w/o param
     this.processAudio();
@@ -651,7 +655,7 @@ unittest {
 /// Test Osc2 Track and pitch
 @nogc nothrow @system
 unittest {
-  import std.math : approxEqual;
+  import std.math : isClose;
   TestHost host = { mallocNew!Synth2Client() };
   scope (exit) destroyFree(host.client);
 
@@ -659,12 +663,12 @@ unittest {
   host.setParam!(Params.oscMix)(1.0);
   host.setParam!(Params.osc2Track)(false);
   host.processAudio();
-  assert(approxEqual(host.client._osc2.lastUsedWave.freq, 440));
+  assert(isClose(host.client._osc2.lastUsedWave.freq, 440));
 
   // Check pitch is 1 octave down.
   host.setParam!(Params.osc2Pitch)(-12);
   host.processAudio();
-  assert(approxEqual(host.client._osc2.lastUsedWave.freq, 220));
+  assert(isClose(host.client._osc2.lastUsedWave.freq, 220));
 
   // Check pitch is down from 220hz.
   host.setParam!(Params.osc2Fine)(-1.0);
