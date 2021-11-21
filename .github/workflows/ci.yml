@@ -73,9 +73,6 @@ jobs:
       with:
         compiler: ${{ matrix.compiler }}
 
-    - name: D-Scanner
-      run: dub fetch dscanner && dub run dscanner -- --styleCheck source
-
     - name: Install dplug-build
       run: |
         dub build
