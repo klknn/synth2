@@ -8,6 +8,9 @@ on:
     branches:
       - master
 
+env:
+  LANG: "en_US.UTF-8"
+
 jobs:
   Test:
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
@@ -36,6 +39,9 @@ jobs:
       uses: dlang-community/setup-dlang@v1
       with:
         compiler: ${{ matrix.compiler }}
+
+    - name: D-Scanner
+      run: dub fetch dscanner && dub run dscanner -- --styleCheck source
 
     - name: Test synth2
       run: |
