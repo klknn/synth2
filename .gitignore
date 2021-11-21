@@ -2,6 +2,7 @@
 
 !synth2
 !*.d
+!*.ini
 !*.json
 !*.md
 !*.py
