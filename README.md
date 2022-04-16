@@ -39,9 +39,11 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
 - [x] Effect (phaser is WIP)
 - [x] Equalizer / Pan
 - [x] Voice
-- [ ] Arpeggiator
 - [x] Tempo Delay
 - [x] Chorus / Flanger
+- [ ] Unison
+- [ ] Reverb
+- [ ] Arpeggiator
 - [ ] Presets
 - [ ] MIDI
   - [x] Pitch bend
