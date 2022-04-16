@@ -41,7 +41,7 @@ https://github.com/AuburnSounds/Dplug/wiki/Getting-Started
 - [x] Voice
 - [ ] Arpeggiator
 - [x] Tempo Delay
-- [ ] Chorus / Flanger
+- [x] Chorus / Flanger
 - [ ] Presets
 - [ ] MIDI
   - [x] Pitch bend
