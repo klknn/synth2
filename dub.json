@@ -24,7 +24,7 @@
                 "LV2"
             ],
             "dependencies": {
-                "dplug:lv2": "~>12.1.16"
+                "dplug:lv2": "~>12.7"
             },
             "lflags-osx-x86_64-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst", "-dead_strip" ],
             "lflags-osx-arm64-ldc": [ "-exported_symbols_list", "resource/module-lv2.lst" ],
@@ -37,7 +37,7 @@
                 "VST2"
             ],
             "dependencies": {
-                "dplug:vst2": "~>12.1.16"
+                "dplug:vst2": "~>12.7"
             },
             "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst.lst", "-dead_strip" ],
             "lflags-linux-ldc": [ "--version-script=resource/module-vst.ver" ]
@@ -49,7 +49,7 @@
                 "VST3"
             ],
             "dependencies": {
-                "dplug:vst3": "~>12.1.16"
+                "dplug:vst3": "~>12.7"
             },
             "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst3.lst", "-dead_strip" ],
             "lflags-linux-ldc": [ "--version-script=resource/module-vst3.ver" ]
@@ -59,16 +59,16 @@
             "versions": ["AU"],
             "targetType": "dynamicLibrary",
             "dependencies": {
-                "dplug:au": "~>12.1.16"
+                "dplug:au": "~>12.7"
             },
             "lflags-osx-x86_64-ldc": [ "-exported_symbols_list", "resource/module-au.lst", "-dead_strip" ],
             "lflags-osx-arm64-ldc": [ "-exported_symbols_list", "resource/module-au.lst" ]
         },
     ],
     "dependencies": {
-        "dplug:flat-widgets": "~>12.1.16",
-        "dplug:pbr-widgets": "~>12.1.16",
-        "mir-random": "~>2.2.15"
+        "dplug:flat-widgets": "~>12.7",
+        "dplug:pbr-widgets": "~>12.7",
+        "mir-random": "~>2.2"
     },
     "dflags-linux-dmd": [
         "-defaultlib=libphobos2.a"

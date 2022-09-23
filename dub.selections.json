@@ -1,13 +1,13 @@
 {
 	"fileVersion": 1,
 	"versions": {
-		"dplug": "12.1.19",
-		"gfm": "8.0.6",
+		"dplug": "12.7.19",
 		"intel-intrinsics": "1.10.6",
 		"mir-algorithm": "3.15.3",
 		"mir-core": "1.3.4",
 		"mir-linux-kernel": "1.2.1",
 		"mir-random": "2.2.19",
-		"silly": "1.1.1"
+		"silly": "1.1.1",
+		"wren-port": "1.1.3"
 	}
 }
