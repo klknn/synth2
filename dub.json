@@ -39,7 +39,8 @@
             "dependencies": {
                 "dplug:vst2": "~>12.7"
             },
-            "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst.lst", "-dead_strip" ],
+            "lflags-osx-x86_64-ldc": [ "-exported_symbols_list", "resource/module-vst.lst", "-dead_strip" ],
+            "lflags-osx-arm64-ldc": [ "-exported_symbols_list", "resource/module-vst.lst" ],
             "lflags-linux-ldc": [ "--version-script=resource/module-vst.ver" ]
         },
         {
@@ -51,7 +52,8 @@
             "dependencies": {
                 "dplug:vst3": "~>12.7"
             },
-            "lflags-osx-ldc": [ "-exported_symbols_list", "resource/module-vst3.lst", "-dead_strip" ],
+            "lflags-osx-x86_64-ldc": [ "-exported_symbols_list", "resource/module-vst3.lst", "-dead_strip" ],
+            "lflags-osx-arm64-ldc": [ "-exported_symbols_list", "resource/module-vst3.lst" ],
             "lflags-linux-ldc": [ "--version-script=resource/module-vst3.ver" ]
         },
         {

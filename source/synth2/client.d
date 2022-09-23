@@ -540,7 +540,7 @@ unittest {
 
   host.processAudio();  // to omit the first record.
   auto time = benchmark!(() => host.processAudio())(100)[0].split!("msecs", "usecs");
-  printf("benchmark (default): %d ms %d us\n", time.msecs, time.usecs);
+  printf("benchmark (default): %d ms %d us\n", cast(int) time.msecs, cast(int) time.usecs);
   version (OSX) {} else {
     version (LDC) assert(time.msecs <= 20);
   }

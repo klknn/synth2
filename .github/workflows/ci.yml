@@ -99,7 +99,7 @@ jobs:
         if ("${{ matrix.os }}" -like 'windows*') {
           $Plugins = "-c VST2 -c VST3"
         } elseif ("${{ matrix.os }}" -like 'macOS*') {
-          $Plugins = "-c VST3 -c AU"
+          $Plugins = "-c vST2 -c VST3 -c AU"
         } elseif ("${{ matrix.os }}" -like 'ubuntu*') {
           $Plugins = "-c VST2 -c VST3 -c LV2"
         }
