@@ -6,9 +6,9 @@ License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
 module synth2.waveform;
 
-import mir.random : rand;
-import mir.random.engine.xoshiro : Xoshiro128StarStar_32;
 import mir.math : sin, PI, fmin, fastmath;
+
+import synth2.random : Xorshiro128Plus;
 
 /// Waveform kind.
 enum Waveform {
@@ -24,7 +24,7 @@ static immutable waveformNames = [__traits(allMembers, Waveform)];
 
 /// Waveform range.
 struct WaveformRange {
-  @safe nothrow @nogc:
+  @safe nothrow @nogc pure:
 
   /// Infinite range method.
   enum empty = false;
@@ -41,14 +41,19 @@ struct WaveformRange {
       case Waveform.triangle:
         return 2f * fmin(this.phase, 2 * PI - this.phase) / PI - 1f;
       case Waveform.noise:
-        return rand!float(this.rng);
+        return 2f * this.rng.front / uint.max - 1f;
     }
   }
 
   /// Increments timestamp of osc.
   /// Params:
   ///   n = #frames.
-  pure void popFront(long n = 1) {
+  void popFront(long n = 1) {
+    if (this.waveform == Waveform.noise) {
+      this.rng.popFront();
+      return;
+    }
+
     this.phase += this.freq * 2 * PI / this.sampleRate * n;
     this.normalized = false;
     if (this.phase >= 2 * PI) {
@@ -69,9 +74,10 @@ struct WaveformRange {
   float normalized = false;
   ///
   float pulseWidth = 0.5;
-  
- private:  
-  static rng = Xoshiro128StarStar_32(0u);
+
+ private:
+  // static rng = Xoshiro128StarStar_32(0u);
+  Xorshiro128Plus rng;
 }
 
 ///
