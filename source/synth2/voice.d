@@ -61,7 +61,7 @@ struct VoiceStatus {
     return !_envelope.empty;
   }
 
-  float front() const {
+  float front() const pure {
     if (!this.isPlaying) return 0f;
     return _gain * _envelope.front;
   }

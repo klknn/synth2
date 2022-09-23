@@ -6,7 +6,7 @@ License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
 module synth2.waveform;
 
-import mir.math : sin, PI, fmin, fastmath;
+import mir.math : sin, PI, M_1_PI, M_2_PI, fmin, fastmath, fma;
 
 import synth2.random : Xorshiro128Plus;
 
@@ -24,7 +24,7 @@ static immutable waveformNames = [__traits(allMembers, Waveform)];
 
 /// Waveform range.
 struct WaveformRange {
-  @safe nothrow @nogc pure:
+  @fastmath @safe nothrow @nogc pure:
 
   /// Infinite range method.
   enum empty = false;
@@ -33,15 +33,15 @@ struct WaveformRange {
   float front() const {
     final switch (this.waveform) {
       case Waveform.saw:
-        return 1.0 - this.phase / PI;
+        return fma(- M_1_PI, this.phase, 1f);
       case Waveform.sine:
         return sin(this.phase);
       case Waveform.pulse:
         return this.phase <= this.pulseWidth * 2 * PI ? 1f : -1f;
       case Waveform.triangle:
-        return 2f * fmin(this.phase, 2 * PI - this.phase) / PI - 1f;
+        return fma(M_2_PI, fmin(this.phase, 2 * PI - this.phase), -1f);
       case Waveform.noise:
-        return 2f * this.rng.front / uint.max - 1f;
+        return fma(2f / uint.max, cast(float) this.rng.front, - 1f);
     }
   }
 
@@ -76,12 +76,11 @@ struct WaveformRange {
   float pulseWidth = 0.5;
 
  private:
-  // static rng = Xoshiro128StarStar_32(0u);
-  Xorshiro128Plus rng;
+  Xorshiro128Plus rng = Xorshiro128Plus(0);
 }
 
 ///
-@safe nothrow @nogc unittest {
+@safe nothrow @nogc pure unittest {
   import std.range;
   assert(isInputRange!WaveformRange);
   assert(isInfinite!WaveformRange);
@@ -90,7 +89,6 @@ struct WaveformRange {
   w.waveform = Waveform.noise;
   foreach (_; 0 .. 10) {
     assert(-1 < w.front && w.front < 1);
-    assert(0 <= w.phase && w.phase <= 2 * PI);
     w.popFront();
   }
 }

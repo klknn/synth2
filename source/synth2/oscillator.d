@@ -123,7 +123,7 @@ struct Oscillator
   enum empty = false;
 
   /// Returns: sum of amplitudes of _waves at the current phase.
-  float front() const {
+  float front() const pure {
     float sample = 0;
     foreach (i, ref v; _voices) {
       sample += v.front * _waves[i].front;

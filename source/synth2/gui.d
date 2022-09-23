@@ -119,7 +119,7 @@ class Synth2GUI : PBRBackgroundGUI!(png1, png2, png3, png3, png3, ""), IParamete
     // header
     y = marginH;
     _synth2 = _addLabel("Synth2", 0, marginH, fontLarge);
-    _date = _addLabel("v0.00 " ~ __DATE__, _synth2.position.max.x + marginW,
+    _date = _addLabel("v0.00 " ~ __DATE__ ~ __TIME__, _synth2.position.max.x + marginW,
                       _synth2.position.min.y, fontMedium);
     _tempo = _addLabel("BPM000.0", _date.position.max.x + marginW,
                        _synth2.position.min.y, fontMedium);
