@@ -202,11 +202,11 @@ struct Oscillator
     }
   }
 
-  inout(VoiceStatus)[] _voices() inout pure {
+  inout(VoiceStatus)[] _voices() inout pure return {
     return _voicesArr[0 .. _maxVoices];
   }
 
-  inout(WaveformRange)[] _waves() inout pure {
+  inout(WaveformRange)[] _waves() inout pure return {
     return _wavesArr[0 .. _maxVoices];
   }
 
