@@ -46,32 +46,72 @@ struct Xorshiro128Plus {
   }
 
   /* This is the jump function for the generator. It is equivalent
-     to 2^64 calls to next(); it can be used to generate 2^64
+     to 2^64 calls to popFront(); it can be used to generate 2^64
      non-overlapping subsequences for parallel computations. */
   void jump() {
-    static immutable uint[] JUMP = [0x8764000b, 0xf542d2d3, 0x6fa035c3, 0x77f2db5b];
+    _jump!([0x8764000b, 0xf542d2d3, 0x6fa035c3, 0x77f2db5b]);
+  }
 
-    uint s0 = 0;
-    uint s1 = 0;
-    uint s2 = 0;
-    uint s3 = 0;
-    foreach (J; JUMP) {
-      for(int b = 0; b < 32; b++) {
-        if (J & 1u << b) {
-          s0 ^= s[0];
-          s1 ^= s[1];
-          s2 ^= s[2];
-          s3 ^= s[3];
+  /* This is the long-jump function for the generator. It is equivalent to
+     2^96 calls to popFront(); it can be used to generate 2^32 starting points,
+     from each of which jump() will generate 2^32 non-overlapping
+     subsequences for parallel distributed computations. */
+  void longJump() {
+    _jump!([0xb523952e, 0x0b6f099f, 0xccf5a0ef, 0x1c580662]);
+  }
+
+private:
+
+  void _jump(const uint[4] JUMP)() {
+    uint[4] a;
+    foreach (j; JUMP) {
+      foreach (b; 0 .. 32) {
+        if (j & 1u << b) {
+          a[] ^= s[];
         }
         popFront();
       }
     }
-    s[0] = s0;
-    s[1] = s1;
-    s[2] = s2;
-    s[3] = s3;
+    s[] = a[];
   }
 
-private:
-  uint[4] s = [1, 2, 3, 4];
+  uint[4] s = [0, 0, cast(uint) splitmix64(0), splitmix64(0) >> 32];
+}
+
+@nogc nothrow pure @safe
+unittest {
+  Xorshiro128Plus rng0, rng1, rng2;
+  assert(rng0.s == rng1.s, "initial seeds should be equal.");
+
+  uint x0 = rng0.front();
+  assert(x0 == rng1.front(), "front should be the same if seeds are equal.");
+
+  rng0.popFront();
+  assert(rng0.front != x0, "front should be changed by popFront.");
+
+  rng1.popFront();
+  assert(rng0.front == rng1.front(), "popFront() should be reproducible");
+
+  rng1.jump();
+  assert(rng0.front != rng1.front, "jump() should mutate front.");
+
+  rng0.jump();
+  assert(rng0.front == rng1.front,
+         "Both rng0 and rng1 call 1 jump + 1 popFront in total.");
+
+  rng2.popFront();
+  rng2.jump();
+  rng2.longJump();
+  assert(rng0.front != rng2.front, "longJump() should mutate front.");
+
+  rng0.longJump();
+  assert(rng0.front == rng2.front,
+         "Both rng0 and rng2 call 1 longJump + 1 jump + 1 popFront in total.");
+
+
+  assert(Xorshiro128Plus.init.s == Xorshiro128Plus(0).s,
+         "Zero seeded states should be equal to the default-initialized ones.");
+
+  assert(Xorshiro128Plus.init.s != Xorshiro128Plus(1).s,
+         "Non-zero states should be different from the default-initialized ones.");
 }
