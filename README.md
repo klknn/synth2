@@ -1,3 +1,5 @@
+# Currently closed. Go https://github.com/klknn/kdr
+
 # Synth2
 
 [![ci](https://github.com/klknn/synth2/actions/workflows/ci.yml/badge.svg)](https://github.com/klknn/synth2/actions/workflows/ci.yml)
